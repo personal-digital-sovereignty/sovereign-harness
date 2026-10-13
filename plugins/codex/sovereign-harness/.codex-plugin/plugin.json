@@ -1,0 +1,30 @@
+{
+  "name": "sovereign-harness",
+  "version": "0.1.0",
+  "description": "Skills do método Sovereign de engenharia assistida por IA. Os guardrails do Codex vão por .codex/hooks.json do projeto (ver install.sh), porque exigem revisão de confiança no Codex.",
+  "author": {
+    "name": "Sovereign Pair"
+  },
+  "keywords": [
+    "metodologia",
+    "skills",
+    "multi-agente",
+    "validacao"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Sovereign Harness",
+    "shortDescription": "Método de engenharia assistida por IA",
+    "longDescription": "Skills do método Sovereign: validação sem mock, viés de plausibilidade, quadro de trabalho multi-agente, governança de decisão e prosa que vira gate.",
+    "developerName": "Sovereign Pair",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/personal-digital-sovereignty/sovereign-harness"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/personal-digital-sovereignty/sovereign-harness",
+  "repository": "https://github.com/personal-digital-sovereignty/sovereign-harness"
+}

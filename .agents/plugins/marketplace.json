@@ -1,0 +1,12 @@
+{
+  "name": "sovereign-harness",
+  "interface": { "displayName": "Sovereign Harness" },
+  "plugins": [
+    {
+      "name": "sovereign-harness",
+      "source": { "source": "local", "path": "./plugins/codex/sovereign-harness" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}

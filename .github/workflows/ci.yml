@@ -1,0 +1,51 @@
+# CI do Sovereign Harness. Repositório PÚBLICO: só runner hospedado do GitHub.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    name: Guard, instalador e sincronia dos plugins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Cópias dos plugins idênticas à fonte
+        run: python3 scripts/sincronizar.py --verificar
+      - name: Testes (guard em repositórios reais, instalador, integridade)
+        run: python3 -m unittest discover -s core/tests -v
+      - name: Shell (sintaxe e shellcheck)
+        run: |
+          for f in install.sh templates/git/pre-push templates/git/pre-commit templates/git/merge_gate.sh templates/git/quadro.sh templates/git/test_quadro.sh; do
+            bash -n "$f"
+          done
+          shellcheck -S warning install.sh
+      - name: Teste hermético do quadro
+        run: bash templates/git/test_quadro.sh templates/git/quadro.sh
+
+  tipos-opencode:
+    name: Tipos do plugin do OpenCode
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '22'
+      - name: Dependências só de checagem (versões fixas, sem lockfile no repositório)
+        run: npm install --no-save --no-package-lock typescript@5.6.3 @types/node@22.10.2 @opencode-ai/plugin@1.18.25
+      - name: tsc
+        run: npx tsc -p ci/tsconfig.opencode.json

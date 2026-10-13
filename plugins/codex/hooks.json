@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [ { "type": "command", "command": "python3 \"__HARNESS_GUARD__\" hook", "timeout": 15 } ]
+      }
+    ],
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "python3 \"__HARNESS_GUARD__\" contexto", "timeout": 15 } ] }
+    ]
+  }
+}

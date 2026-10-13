@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Instala o harness Sovereign num projeto — guard, gates de git, docs e agentes.
+# =============================================================================
+# Uso:
+#   ./install.sh <alvo> [opções]
+#
+# Opções:
+#   --agentes claude,codex,opencode,antigravity   (padrão: os quatro)
+#   --perfil <arquivo.toml>        config do projeto (padrão: core/harness.example.toml)
+#   --sem-skills                   o projeto já tem as próprias skills em .agents/skills;
+#                                  não instala as do kit (só garante os symlinks)
+#   --skills-existentes <dir>      skills vivem em outro diretório: .agents/skills vira
+#                                  symlink relativo para <dir> (prefira mover para .agents/skills)
+#   --sem-git                      não instala pre-push/pre-commit/merge_gate/quadro.sh
+#   --sem-docs                     não instala AGENTS.md, PENDING/CONCLUSION, ADR, quadro
+#   --verificar                    não escreve nada; lista o que faltaria/conflitaria
+#   --raiz-canonica <dir>          caminho absoluto usado nos arquivos que gravam caminho
+#                                  (o .codex/hooks.json). Padrão: o próprio alvo. Use quando
+#                                  gerar a instalação num worktree que vai ser mergeado.
+#
+# Garantias:
+#   - NUNCA sobrescreve. Arquivo existente e diferente vira CONFLITO listado no fim.
+#   - Idempotente: rodar de novo sobre a mesma versão não muda nada.
+#   - Não ativa `core.hooksPath` nem instala plugin no seu usuário: imprime os
+#     comandos. Mudança de config é decisão de quem instala.
+# =============================================================================
+set -uo pipefail
+
+KIT="$(cd "$(dirname "$0")" && pwd)"
+AGENTES="claude,codex,opencode,antigravity"
+PERFIL="$KIT/core/harness.example.toml"
+SKILLS_EXISTENTES=""
+SEM_SKILLS=0
+RAIZ_CANONICA=""
+COM_GIT=1; COM_DOCS=1; VERIFICAR=0
+ALVO=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --agentes) AGENTES="$2"; shift ;;
+        --perfil) PERFIL="$2"; shift ;;
+        --skills-existentes) SKILLS_EXISTENTES="$2"; shift ;;
+        --sem-skills) SEM_SKILLS=1 ;;
+        --raiz-canonica) RAIZ_CANONICA="$2"; shift ;;
+        --sem-git) COM_GIT=0 ;;
+        --sem-docs) COM_DOCS=0 ;;
+        --verificar) VERIFICAR=1 ;;
+        -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -*) echo "opção desconhecida: $1" >&2; exit 1 ;;
+        *) [ -z "$ALVO" ] && ALVO="$1" || { echo "argumento inesperado: $1" >&2; exit 1; } ;;
+    esac
+    shift
+done
+[ -n "$ALVO" ] || { echo "uso: $0 <alvo> [opções] (--help)" >&2; exit 1; }
+[ -d "$ALVO" ] || { echo "alvo não é diretório: $ALVO" >&2; exit 1; }
+ALVO="$(cd "$ALVO" && pwd)"
+RAIZ_CANONICA="${RAIZ_CANONICA:-$ALVO}"
+[ -f "$PERFIL" ] || { echo "perfil inexistente: $PERFIL" >&2; exit 1; }
+command -v python3 >/dev/null || { echo "python3 (>= 3.11) é obrigatório para o guard" >&2; exit 1; }
+
+# A fonte do kit tem de estar em dia antes de copiar dela.
+python3 "$KIT/scripts/sincronizar.py" --verificar >/dev/null || {
+    echo "o kit está dessincronizado — rode: python3 $KIT/scripts/sincronizar.py" >&2; exit 1; }
+
+tem() { case ",$AGENTES," in *",$1,"*) return 0 ;; esac; return 1; }
+CRIADOS=(); IGUAIS=(); CONFLITOS=()
+
+# instala <origem> <destino-relativo> [modo]
+instala() {
+    local origem="$1" rel="$2" modo="${3:-}" dest="$ALVO/$2"
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+        if cmp -s "$origem" "$dest"; then IGUAIS+=("$rel"); else CONFLITOS+=("$rel"); fi
+        return
+    fi
+    CRIADOS+=("$rel")
+    [ $VERIFICAR -eq 1 ] && return
+    mkdir -p "$(dirname "$dest")"
+    cp "$origem" "$dest"
+    [ -n "$modo" ] && chmod "$modo" "$dest"
+}
+
+# instala_texto <conteúdo> <destino-relativo>
+instala_texto() {
+    local tmp; tmp=$(mktemp); printf '%s' "$1" > "$tmp"; instala "$tmp" "$2"; rm -f "$tmp"
+}
+
+# link <alvo-do-link> <destino-relativo>
+link() {
+    local alvo_link="$1" rel="$2" dest="$ALVO/$2"
+    if [ -L "$dest" ]; then
+        [ "$(readlink "$dest")" = "$alvo_link" ] && IGUAIS+=("$rel") || CONFLITOS+=("$rel (symlink para $(readlink "$dest"))")
+        return
+    fi
+    [ -e "$dest" ] && { CONFLITOS+=("$rel (existe e não é symlink)"); return; }
+    CRIADOS+=("$rel -> $alvo_link")
+    [ $VERIFICAR -eq 1 ] && return
+    mkdir -p "$(dirname "$dest")"; ln -s "$alvo_link" "$dest"
+}
+
+# ---------------------------------------------------------------- núcleo
+instala "$KIT/core/harness_guard.py" ".harness/harness_guard.py" 755
+instala "$PERFIL" ".harness.toml"
+
+# ---------------------------------------------------------------- git
+if [ $COM_GIT -eq 1 ]; then
+    instala "$KIT/templates/radar.example.tsv" ".harness/radar.tsv"   # lido pelo pre-push do kit
+    instala "$KIT/templates/git/pre-push" ".githooks/pre-push" 755
+    instala "$KIT/templates/git/pre-commit" ".githooks/pre-commit" 755
+    instala "$KIT/templates/git/merge_gate.sh" "scripts/merge_gate.sh" 755
+    instala "$KIT/templates/git/quadro.sh" ".agents/quadro.sh" 755
+    instala "$KIT/templates/git/test_quadro.sh" ".agents/test_quadro.sh" 755
+fi
+
+# ---------------------------------------------------------------- docs
+if [ $COM_DOCS -eq 1 ]; then
+    instala "$KIT/templates/docs/AGENTS.md" "AGENTS.md"
+    link "AGENTS.md" "CLAUDE.md"
+    link "AGENTS.md" "GEMINI.md"
+    instala "$KIT/templates/docs/PENDING_GAPS_AND_ROADMAP.md" "project_docs/PENDING_GAPS_AND_ROADMAP.md"
+    instala "$KIT/templates/docs/CONCLUSION_ROADMAP_AND_GAPS.md" "project_docs/CONCLUSION_ROADMAP_AND_GAPS.md"
+    instala "$KIT/templates/docs/adr/TEMPLATE.md" "project_docs/adr/TEMPLATE.md"
+    instala "$KIT/templates/docs/adr/ADR-INDEX.md" "project_docs/adr/ADR-INDEX.md"
+    instala "$KIT/templates/docs/agents/agents_work.md" ".agents/agents_work.md"
+fi
+
+# ---------------------------------------------------------------- skills (padrão: .agents/skills)
+# `.agents/skills/` é o local canônico, qualquer que seja o agente (ADR-057 do projeto de
+# origem): Codex e OpenCode o leem nativamente. O Claude Code só descobre `.claude/skills`,
+# então ele vira symlink para `../.agents/skills` — medido: o Claude segue o symlink.
+if [ -n "$SKILLS_EXISTENTES" ]; then
+    link "$SKILLS_EXISTENTES" ".agents/skills"
+elif [ $SEM_SKILLS -eq 0 ]; then
+    while IFS= read -r f; do
+        instala "$f" ".agents/skills/${f#"$KIT/skills/"}"
+    done < <(find "$KIT/skills" -type f -name '*.md' | sort)
+fi
+if tem claude; then
+    link "../.agents/skills" ".claude/skills"
+fi
+
+# ---------------------------------------------------------------- Codex
+if tem codex; then
+    GUARD_ABS="$RAIZ_CANONICA/.harness/harness_guard.py"
+    instala_texto "$(sed "s#__HARNESS_GUARD__#$GUARD_ABS#g" "$KIT/plugins/codex/hooks.json")
+" ".codex/hooks.json"
+fi
+
+# ---------------------------------------------------------------- OpenCode
+if tem opencode; then
+    instala "$KIT/plugins/opencode/sovereign-harness.ts" ".opencode/plugins/sovereign-harness.ts"
+    for c in "$KIT"/commands/*.md; do instala "$c" ".opencode/commands/$(basename "$c")"; done
+fi
+
+# ---------------------------------------------------------------- Antigravity
+if tem antigravity; then
+    # O ponteiro para o AGENTS.md só entra se o projeto ainda não tiver uma regra
+    # always_on que o cite — duas regras dizendo a mesma coisa é ruído no contexto.
+    ja_tem_ponteiro=0
+    # `.agents/rules` e `.agents/workflows` são o padrão; `.agent/` só é lido para não
+    # duplicar o ponteiro de um projeto que ainda o use.
+    for r in "$ALVO"/.agent/rules/*.md "$ALVO"/.agents/rules/*.md; do
+        [ -f "$r" ] && grep -q '^trigger: always_on' "$r" && grep -q 'AGENTS.md' "$r" \
+            && [ "$(basename "$r")" != "sovereign-00-agents-md.md" ] && ja_tem_ponteiro=1
+    done
+    for r in "$KIT"/plugins/antigravity/rules/*.md; do
+        [ "$(basename "$r")" = "00-agents-md.md" ] && [ $ja_tem_ponteiro -eq 1 ] && continue
+        instala "$r" ".agents/rules/sovereign-$(basename "$r")"
+    done
+    for w in "$KIT"/plugins/antigravity/workflows/*.md; do instala "$w" ".agents/workflows/$(basename "$w")"; done
+fi
+
+# ---------------------------------------------------------------- relatório
+echo ""
+echo "━━━ harness Sovereign → $ALVO $([ $VERIFICAR -eq 1 ] && echo '(--verificar: nada foi escrito)')"
+echo "criados:    ${#CRIADOS[@]}"; printf '   + %s\n' "${CRIADOS[@]+"${CRIADOS[@]}"}"
+echo "já iguais:  ${#IGUAIS[@]}"
+if [ ${#CONFLITOS[@]} -gt 0 ]; then
+    echo "CONFLITOS:  ${#CONFLITOS[@]} (não sobrescritos — compare e mescle à mão)"
+    printf '   ! %s\n' "${CONFLITOS[@]}"
+    printf '%s\n' "${CONFLITOS[@]}" | grep -q '^\.claude/skills' && \
+        echo "   → .claude/skills é diretório real: mova as skills para .agents/skills e troque-o pelo symlink ../.agents/skills"
+fi
+echo ""
+echo "Próximos passos (decisão de quem instala):"
+[ $COM_GIT -eq 1 ] && echo "  • ativar os gates de git neste clone:   git -C \"$ALVO\" config core.hooksPath \"$ALVO/.githooks\""
+tem claude && {
+    echo "  • Claude Code:  claude plugin marketplace add \"$KIT\""
+    echo "                  claude plugin install sovereign-harness-guard@sovereign-harness --scope project"
+    echo "                  (skills: pelo symlink .claude/skills -> ../.agents/skills; o plugin de método é opcional)"
+}
+tem codex && echo "  • Codex: abra o codex no projeto e APROVE a revisão dos hooks (.codex/hooks.json) — sem isso eles não rodam."
+tem opencode && echo "  • OpenCode: o plugin carrega sozinho de .opencode/plugins/ na próxima sessão."
+tem antigravity && echo "  • Antigravity: reinicie o IDE e confirme a injeção da regra com um canário (ver USO)."
+echo "  • conferir as regras ativas:  python3 \"$ALVO/.harness/harness_guard.py\" regras"
+[ ${#CONFLITOS[@]} -gt 0 ] && exit 3
+exit 0

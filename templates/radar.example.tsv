@@ -1,0 +1,11 @@
+# Radar de skills do pre-push: aponta a seção que responde ao que o push encostou.
+# NÃO bloqueia (HARNESS_RADAR=block transforma em gate numa rodada de auditoria).
+# Formato: <diff|arquivo><TAB><regex ERE><TAB><mensagem>
+# `diff` casa linhas ADICIONADAS; `arquivo`, caminhos tocados. Casamento sintático
+# gera falso positivo por construção — por isso é radar, não gate.
+diff	Command::new|subprocess\.(run|Popen)|child_process	segurança — argv de processo externo: prefixo '-' é injeção de flag
+diff	(SELECT|INSERT|UPDATE|DELETE)[[:space:]].*(\{|\+|%s|format)	segurança — SQL montado por string: diga de onde vem o texto interpolado
+diff	innerHTML|\{@html|dangerouslySetInnerHTML	segurança — HTML do cliente: sanitização e CSP
+diff	unwrap_or.*\((true|false)\)|except[[:space:]]*:|catch[[:space:]]*\(\w*\)[[:space:]]*\{[[:space:]]*\}	fail-loud — fallback silencioso em primitiva crítica é bug
+arquivo	\.github/workflows/	segurança — workflow de CI que toca segredo/artefato
+arquivo	(^|/)tests?/|\.spec\.|_test\.	hermeticidade-de-teste — o teste spawna processo? declare o ambiente do filho

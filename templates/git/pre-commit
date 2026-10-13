@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Meta-repo — pre-commit: o quadro de trabalho só se commita em `main`
+# =============================================================================
+# O `.agents/agents_work.md` é o único lugar onde as sessões concorrentes se
+# enxergam. Ele só funciona se todas lerem e escreverem o MESMO arquivo — e
+# versionamento por branch é exatamente o oposto disso: numa branch de agente, o
+# que você escreve fica invisível para as outras até um merge que talvez nunca
+# aconteça. Foi assim que ele nasceu errado em 2026-09-09, na primeira versão.
+#
+# Como o arquivo É versionado, cada branch e cada `git worktree` carrega uma
+# cópia congelada dele. Nada no git impede que você edite a cópia errada — este
+# hook impede.
+#
+# Ele bloqueia três coisas, e deixa passar todo o resto:
+#   1. commitar o quadro de um worktree (só o diretório principal vale);
+#   2. commitar o quadro fora de `main`;
+#   3. commitar o quadro de carona com arquivos que não são do próprio `.agents/`.
+#
+# Instalação (config local, não viaja em clone — e aqui o caminho é ABSOLUTO de
+# propósito: com caminho relativo o hook não rodaria justamente nos worktrees,
+# cujas branches podem não ter o diretório `.githooks/`):
+#
+#     git config core.hooksPath "$(pwd)/.githooks"   # caminho ABSOLUTO do diretório principal
+#
+# Exceção consciente, no padrão dos 8 repositórios de código:
+#     HARNESS_SKIP=quadro git commit ...
+# =============================================================================
+set -uo pipefail
+
+QUADRO='.agents/agents_work.md'
+# Diretório principal do repositório de coordenação, lido da config do harness.
+# Sem config, o diretório principal do próprio repositório (git-common-dir).
+CANONICO=""
+if [ -f .harness/harness_guard.py ]; then
+    c=$(python3 .harness/harness_guard.py config quadro.canonico 2>/dev/null) && CANONICO="${c%/.agents/agents_work.md}"
+fi
+[ -n "$CANONICO" ] || CANONICO=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
+RED='\033[0;31m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+
+staged=$(git diff --cached --name-only 2>/dev/null)
+# Visibilidade do que vai no commit (2026-09-10): o index do meta-repo vive
+# com dezenas de arquivos staged de outras sessoes. Este eco nao bloqueia
+# nada — mas mostra. A regra continua sendo conferir 'git diff --cached' antes.
+echo 'staged neste commit:'
+printf '%s\n' "$staged" | sed 's/^/    · /'
+
+# =========================================================================
+# Gate docrefs — integridade de referencias da documentacao
+# =========================================================================
+# Auditoria automatizada do que um replace global quebrou em 2026-09-09 sem
+# ninguem ver (2 slugs de skill e 2 filenames de link no indice de ADRs).
+# Checagens puramente mecanicas em .githooks/check_doc_refs.py: links
+# Markdown, slugs de skill, refs ADR-0NN e E##, consistencia do ADR-INDEX.
+# Roda quando o staged toca .md (ou o proprio script); sem docs no commit,
+# passa direto. Assume CWD = raiz do repo (todos os fluxos usam git -C).
+# Excecao consciente, no padrao do arquivo: HARNESS_SKIP=docrefs
+if printf '%s\n' "$staged" | grep -qE '\.md$|check_doc_refs\.py'; then
+	if env | grep -q '^HARNESS_SKIP=.*docrefs'; then
+		echo 'docrefs: verificacao pulada (HARNESS_SKIP)'
+	elif ! command -v python3 >/dev/null 2>&1; then
+		echo 'docrefs: python3 ausente — sem verificacao, sem commit. Instale o python3.'
+		exit 1
+	elif [ -f .githooks/check_doc_refs.py ] && ! python3 .githooks/check_doc_refs.py; then
+		echo 'docrefs: corrigir acima. Se a excecao for consciente: HARNESS_SKIP=docrefs git commit ...'
+		exit 1
+	fi
+fi
+printf '%s\n' "$staged" | grep -qxF "$QUADRO" || exit 0   # quadro fora do commit: nada a ver aqui
+
+case ",${HARNESS_SKIP:-}," in
+    *,quadro,*|*,all,*)
+        echo -e "${YELLOW}⏭  quadro: verificação pulada (HARNESS_SKIP)${NC}"
+        exit 0
+        ;;
+esac
+
+bloqueia() {
+    echo ""
+    echo -e "${RED}❌ COMMIT BLOQUEADO — ${QUADRO}${NC}"
+    echo ""
+    printf '%b\n' "$1"
+    echo ""
+    echo -e "${BLUE}O quadro de trabalho vive em \`main\`, no diretório principal:${NC}"
+    echo -e "${BLUE}    ${CANONICO}/${QUADRO}${NC}"
+    echo ""
+    echo -e "${BLUE}Edite sempre por esse caminho absoluto e commite com o helper:${NC}"
+    echo -e "${BLUE}    ${CANONICO}/.agents/quadro.sh commit \"docs(quadro): <o que mudou>\"${NC}"
+    echo ""
+    echo -e "${YELLOW}Se a exceção for consciente:  HARNESS_SKIP=quadro git commit ...${NC}"
+    echo ""
+    exit 1
+}
+
+toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ "$toplevel" != "$CANONICO" ]; then
+    bloqueia "Você está num worktree (\`$toplevel\`).\nA cópia do quadro aqui é um retrato congelado: editá-la é escrever\nnum quadro que nenhuma outra sessão lê — e ainda gera conflito no merge."
+fi
+
+branch=$(git branch --show-current 2>/dev/null)
+if [ "$branch" != "main" ]; then
+    bloqueia "O meta-repo está em '${branch:-HEAD destacado}', não em \`main\`.\nNuma branch, o que você escrever no quadro fica invisível para as outras\nsessões — que é justamente o problema que ele existe para resolver."
+fi
+
+# O quadro vai sozinho, ou acompanhado apenas da própria infra (`.agents/`).
+# Isso mantém o histórico dele legível e impede que entre de carona num commit
+# de outro assunto — importante porque o index do meta-repo costuma ter dezenas
+# de arquivos staged de outras sessões.
+# "Própria infra" = arquivos de PRIMEIRO nível de `.agents/` (helper, teste). Desde
+# a ADR-057 as skills, regras e workflows também moram em `.agents/` — e não
+# podem entrar de carona num commit do quadro.
+outros=$(printf '%s\n' "$staged" | grep -vxF "$QUADRO" | grep -vE '^\.agents/[^/]+$' | grep -v '^$' || true)
+if [ -n "$outros" ]; then
+    bloqueia "Este commit levaria o quadro junto de arquivos de outro assunto:\n$(printf '%s\n' "$outros" | sed 's/^/    · /')\n\nCommite o quadro sozinho. O helper \`quadro.sh commit\` faz isso com\n\`git commit <path>\`, que preserva o que estiver staged de outras sessões."
+fi
+
+# Guarda anti-deleção de entradas (2026-09-12): os commits e371cab e 00275f4
+# subiram árvore obsoleta e apagaram entradas vivas de outras sessões — o
+# helper recusaria hoje, mas o `git commit` direto não. Move Em
+# andamento→Concluído READICIONA o título `### `, então só barra remoção
+# LÍQUIDA (título some e não volta no mesmo diff). Limpeza legítima de
+# entrada obsoleta usa o escape consciente abaixo.
+perdidos=""
+# NOTA (2026-09-12): padrões de propósito sem UMA barra invertida sequer.
+# `grep -E '^\+'` e `grep -v '^\+\+\+'` são equivalentes, mas barras somem
+# silenciosamente em certas cadeias de ferramenta (chat, harness, copy-paste)
+# — e `^+++` em ERE vira "uma ou mais cruzes", filtrando TODAS as linhas `+`
+# em vez de só o cabeçalho `+++`. Em BRE, `+` é literal sempre. Comportamento
+# idêntico, classe inteira de confusão eliminada (medido na validação da guarda).
+removidos=$(git diff --cached -- "$QUADRO" | grep -E '^-### [A-Za-z0-9_-]+/' | sed 's/^-//' || true)
+if [ -n "$removidos" ]; then
+    adicionados=$(git diff --cached -- "$QUADRO" | grep '^+' | grep -v '^+++' | sed 's/^+//' || true)
+    while IFS= read -r linha; do
+        [ -z "$linha" ] && continue
+        printf '%s\n' "$adicionados" | grep -qxF "$linha" || perdidos="${perdidos}  · ${linha}\n"
+    done <<EOF
+$removidos
+EOF
+fi
+if [ -n "$perdidos" ]; then
+    bloqueia "Este commit APAGA entradas do quadro sem readicioná-las:\n$(printf '%b' "$perdidos")\nSe é move Em andamento→Concluído, o título precisa reaparecer no diff.\nSe é limpeza consciente de entrada obsoleta: HARNESS_SKIP=quadro"
+fi
+
+exit 0

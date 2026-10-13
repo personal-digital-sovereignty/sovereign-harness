@@ -1,0 +1,20 @@
+{
+  "description": "Guard do harness Sovereign: bloqueia ações perigosas antes de executar e injeta o estado do quadro de trabalho no início da sessão.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|Read",
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/harness_guard.py\" hook", "timeout": 15 }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/harness_guard.py\" contexto", "timeout": 15 }
+        ]
+      }
+    ]
+  }
+}
