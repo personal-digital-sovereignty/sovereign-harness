@@ -86,6 +86,18 @@ class Documentation(unittest.TestCase):
         docs.migrate(self.root, self.plan({"old/a.md": "docs/epics/a.md", "old/b.md": "docs/adr/b.md"}), True, ["/previous/project"])
         self.assertEqual((self.root / "docs/epics/a.md").read_text(), "[b]: ../adr/b.md#x\n")
 
+    def test_canonical_resource_and_excluded_board_preserved(self):
+        canonical = "[quadro](file:///previous/project/.agents/board.md)\n"
+        self.put("old/a.md", canonical)
+        self.put(".agents/board.md", "[doc](../old/a.md)\n")
+        plan = self.plan({"old/a.md": "docs/a.md"})
+        data = json.loads(plan.read_text())
+        data["exclude"] = [".agents/board.md"]
+        plan.write_text(json.dumps(data))
+        docs.migrate(self.root, plan, True, ["/previous/project"])
+        self.assertEqual((self.root / "docs/a.md").read_text(), canonical)
+        self.assertEqual((self.root / ".agents/board.md").read_text(), "[doc](../old/a.md)\n")
+
     def test_nested_repository_is_not_migrated(self):
         self.put("old/a.md", "A")
         child = self.root / "member"

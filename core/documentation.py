@@ -67,6 +67,10 @@ def rewrite(root: Path, source: str, destination: str, text: str,
         old, suffix = target_path(root, source, match[2], aliases)
         if old is None:
             return match[0]
+        # Caminho absoluto para recurso não migrado (ex.: quadro canônico ou
+        # repositório irmão) conserva sua autoridade e não vira cópia do worktree.
+        if old not in moves and urlsplit(match[2].strip("<>")).path.startswith("/"):
+            return match[0]
         new = moves.get(old, old)
         relative = os.path.relpath(new, str(Path(destination).parent))
         target = relative + suffix
@@ -90,6 +94,11 @@ def migrate(root: Path, plan: Path, apply: bool, aliases: list[str]) -> dict:
     if data.get("version") != 1 or not isinstance(data.get("moves"), dict):
         raise ValueError("plano deve conter version=1 e moves={origem:destino}")
     moves = data["moves"]
+    excluded = data.get("exclude", [])
+    if not isinstance(excluded, list) or not all(isinstance(p, str) for p in excluded):
+        raise ValueError("exclude deve ser lista de caminhos relativos")
+    if set(excluded) & set(moves):
+        raise ValueError("origem excluída não pode estar em moves")
     if len(set(moves.values())) != len(moves):
         raise ValueError("dois arquivos têm o mesmo destino")
     files = tracked(root)
@@ -102,6 +111,8 @@ def migrate(root: Path, plan: Path, apply: bool, aliases: list[str]) -> dict:
     originals: dict[str, bytes] = {}
     outputs: dict[str, tuple[str, bytes]] = {}
     for old in files:
+        if old in excluded:
+            continue
         if (root / old).is_symlink() or not (root / old).is_file():
             continue
         content = (root / old).read_bytes()
