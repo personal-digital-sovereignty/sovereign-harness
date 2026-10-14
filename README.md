@@ -14,9 +14,11 @@ classificação/fechamento. `core/documentation.py` migra por mapa explícito e
 verifica destinos de links locais. Não valida âncoras, links web ou referências
 em prosa; consumidores externos exigem revisão própria.
 
-**Limite atual:** gates de git distribuídos em `templates/git` ainda são o perfil
-herdado de GitHub/Rust/Node. Use `--sem-git` quando ele não corresponder ao projeto.
-Não interpretar instalação do kit como certificação da stack, SO ou agente.
+**Instalação padrão:** gates declarativos por projeto, sem inferir stack, forge,
+branch ou membros. Preencha o contrato de validação antes do primeiro push.
+O perfil legado GitHub/Rust/Node é opt-in com `--git-profile github-rust-node`.
+Ver [configuração e limites](docs/CONFIGURATION.md). Instalação não certifica
+uma stack, SO ou integração de agente não exercitados.
 
 | Peça | Onde | Para quê |
 |---|---|---|

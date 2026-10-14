@@ -41,6 +41,15 @@ class Instalador(unittest.TestCase):
         for name in ("PENDING.md", "ROADMAP.md", "CONCLUSION.md", "epics/README.md", "gaps/README.md", "templates/EPIC.md"):
             self.assertTrue((self.alvo / "docs" / name).is_file(), name)
         self.assertFalse((self.alvo / "project_docs").exists())
+        self.assertTrue((self.alvo / ".harness/validation.py").is_file())
+        self.assertFalse((self.alvo / "scripts/merge_gate.sh").exists())
+        self.assertIn("validation.py", (self.alvo / ".githooks/pre-push").read_text())
+
+    def test_perfil_github_e_opt_in(self):
+        result = instalar(self.alvo, "--git-profile", "github-rust-node")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((self.alvo / "scripts/merge_gate.sh").is_file())
+        self.assertTrue((self.alvo / ".agents/quadro.sh").is_file())
 
     def test_perfil_invalido_recusa_sem_instalar(self):
         profile = Path(self._tmp.name) / "invalid.toml"

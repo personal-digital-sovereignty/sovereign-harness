@@ -1,5 +1,14 @@
 # Conclusões — Sovereign Harness
 
+## 2026-10-14 — Gates portáveis e topologia explícita
+
+Instalação padrão deixa de presumir GitHub, Rust/Node, origin/main e quadro
+compartilhado. Gates são argv/cwd declarados, com membros explícitos no meta-repo.
+Perfil incompleto recusa push. Provas reais: repo em trunk sem remote, monorepo,
+metarrepositório com membro Git em develop, propagação de exit 7, travessia,
+checkout sujo e push de múltiplos refs divergentes. Cinco testes passaram.
+Perfil legado permanece opt-in; seus limites estão na configuração e no PENDING.
+
 ## 2026-10-14 — Configuração inválida interrompe o guard
 
 Perfil ilegível, chave/tipo/regra desconhecidos e HARNESS_CONFIG inexistente

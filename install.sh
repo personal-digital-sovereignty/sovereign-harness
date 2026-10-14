@@ -13,6 +13,7 @@
 #   --skills-existentes <dir>      skills vivem em outro diretório: .agents/skills vira
 #                                  symlink relativo para <dir> (prefira mover para .agents/skills)
 #   --sem-git                      não instala pre-push/pre-commit/merge_gate/quadro.sh
+#   --git-profile portable|github-rust-node  padrão: portable, gates declarados no TOML
 #   --sem-docs                     não instala AGENTS.md, PENDING/CONCLUSION, ADR, quadro
 #   --docs-dir <dir>               onde vivem os docs do projeto, relativo à raiz
 #                                  (padrão: docs). O AGENTS.md instalado tem
@@ -42,6 +43,7 @@ DOCS_DIR="docs"
 SEM_SKILLS=0
 RAIZ_CANONICA=""
 COM_GIT=1; COM_DOCS=1; VERIFICAR=0
+GIT_PROFILE="portable"
 ALVO=""
 
 while [ $# -gt 0 ]; do
@@ -54,6 +56,7 @@ while [ $# -gt 0 ]; do
         --sem-skills) SEM_SKILLS=1 ;;
         --raiz-canonica) RAIZ_CANONICA="$2"; shift ;;
         --sem-git) COM_GIT=0 ;;
+        --git-profile) GIT_PROFILE="$2"; shift ;;
         --sem-docs) COM_DOCS=0 ;;
         --verificar) VERIFICAR=1 ;;
         -h|--help) sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -97,6 +100,8 @@ except (OSError, ValueError) as error:
     sys.exit(1)
 PYVALIDA
 [ $? -eq 0 ] || exit 1
+case "$GIT_PROFILE" in portable|github-rust-node) ;; *) echo "perfil Git desconhecido: $GIT_PROFILE" >&2; exit 1 ;; esac
+HARNESS_CONFIG="$PERFIL" python3 "$KIT/core/harness_guard.py" config harness.escape_env >/dev/null || exit 1
 
 # A fonte do kit tem de estar em dia antes de copiar dela.
 python3 "$KIT/scripts/sincronizar.py" --verificar >/dev/null || {
@@ -145,16 +150,22 @@ link() {
 # ---------------------------------------------------------------- núcleo
 instala "$KIT/core/harness_guard.py" ".harness/harness_guard.py" 755
 instala "$KIT/core/documentation.py" ".harness/documentation.py" 755
+instala "$KIT/core/validation.py" ".harness/validation.py" 755
 instala "$PERFIL" ".harness.toml"
 
 # ---------------------------------------------------------------- git
 if [ $COM_GIT -eq 1 ]; then
+  if [ "$GIT_PROFILE" = portable ]; then
+    instala "$KIT/templates/git/pre-push-portable" ".githooks/pre-push" 755
+    instala "$KIT/templates/git/pre-commit-portable" ".githooks/pre-commit" 755
+  else
     instala "$KIT/templates/radar.example.tsv" ".harness/radar.tsv"   # lido pelo pre-push do kit
     instala "$KIT/templates/git/pre-push" ".githooks/pre-push" 755
     instala "$KIT/templates/git/pre-commit" ".githooks/pre-commit" 755
     instala "$KIT/templates/git/merge_gate.sh" "scripts/merge_gate.sh" 755
     instala "$KIT/templates/git/quadro.sh" ".agents/quadro.sh" 755
     instala "$KIT/templates/git/test_quadro.sh" ".agents/test_quadro.sh" 755
+  fi
 fi
 
 # ---------------------------------------------------------------- docs

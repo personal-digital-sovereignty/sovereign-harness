@@ -6,6 +6,7 @@
 - `install.sh`: `--docs-dir <dir>` (padrão `docs`, relativo, validado fail-loud) com reescrita das refs no `AGENTS.md` instalado; `--project-name <nome>` preenche o título; gate de refs pós-instalação sobre a árvore recém-escrita.
 - Skill `doc-governance` + comando `doc`: classificação épico/GAP/insight/ADR, Epic↔ADR nos dois sentidos, `verificar_refs.py` como gate, guarda de índices e quarentena `_legacy`.
 - Teste anti-divergência estendido: `doc-governance` tem seus marcadores de ciclo travados.
+- Gates declarativos por argv/cwd e topologias repository/monorepo/meta-repository, com membros explícitos e testes reais sem remote ou branch main.
 - Avaliação reproduzível da 0.1.0, contrato documental e registros em docs.
 - Migração por mapa explícito, preservação de anexos e verificação de links locais; sete testes com Git real.
 - Templates em docs para épicos, gaps, insights, ADRs, auditorias, arquitetura, runbooks e design system; skills de classificação e fechamento sincronizadas nos plugins.
@@ -13,6 +14,8 @@
 ### Changed
 - `--docs-dir` passa a usar `docs` por padrão; a instalação cria PENDING, ROADMAP e CONCLUSION, além das categorias de engenharia.
 - AGENTS separa política do projeto de método reutilizável; a validação executa somente gates declarados pelo projeto.
+- Instalação padrão usa hooks portáveis; fluxo GitHub/Rust/Node e quadro compartilhado tornam-se perfil opt-in. Push recusa contrato não configurado, checkout rastreado sujo e refs diferentes do HEAD validado.
+- Instalação usa docs/PENDING.md, docs/ROADMAP.md e docs/CONCLUSION.md; AGENTS distingue política do projeto de método reutilizável.
 
 ### Fixed
 - Guard recusa política inválida ou explicitamente ausente, com exit 2 no hook, sem retornar a defaults.

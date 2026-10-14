@@ -36,3 +36,19 @@ ler = ""
 [segredos]
 # Nomes de arquivo .env* que podem ser lidos (só exemplos, sem valor real).
 permitidos = [".env.example", ".env.sample", ".env.template"]
+
+[project]
+# repository | monorepo | meta-repository. Não descobre membros por prefixo.
+topology = "repository"
+members = []
+
+[validation]
+# Habilitar só depois de declarar os gates reais e sua cobertura. Um projeto
+# recém-instalado recusa push enquanto este contrato não estiver preenchido.
+configured = false
+gates = []
+# Exemplo (remova gates=[] antes de usar tabelas):
+# [[validation.gates]]
+# id = "tests"
+# argv = ["python3", "-m", "unittest", "discover", "-s", "tests"]
+# cwd = "."
