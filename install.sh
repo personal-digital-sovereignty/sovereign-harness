@@ -15,7 +15,7 @@
 #   --sem-git                      não instala pre-push/pre-commit/merge_gate/quadro.sh
 #   --sem-docs                     não instala AGENTS.md, PENDING/CONCLUSION, ADR, quadro
 #   --docs-dir <dir>               onde vivem os docs do projeto, relativo à raiz
-#                                  (padrão: project_docs). O AGENTS.md instalado tem
+#                                  (padrão: docs). O AGENTS.md instalado tem
 #                                  suas refs reescritas para este diretório.
 #   --project-name <nome>          preenche o título do AGENTS.md instalado; sem a
 #                                  flag, o placeholder <nome do projeto> fica para
@@ -38,7 +38,7 @@ AGENTES="claude,codex,opencode,antigravity"
 PERFIL="$KIT/core/harness.example.toml"
 SKILLS_EXISTENTES=""
 PROJECT_NAME=""
-DOCS_DIR="project_docs"
+DOCS_DIR="docs"
 SEM_SKILLS=0
 RAIZ_CANONICA=""
 COM_GIT=1; COM_DOCS=1; VERIFICAR=0
@@ -74,6 +74,30 @@ RAIZ_CANONICA="${RAIZ_CANONICA:-$ALVO}"
 [ -f "$PERFIL" ] || { echo "perfil inexistente: $PERFIL" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 (>= 3.11) é obrigatório para o guard" >&2; exit 1; }
 
+# Validar entradas e fronteira antes de criar qualquer arquivo no projeto.
+python3 - "$ALVO" "$PERFIL" "$AGENTES" <<'PYVALIDA'
+import sys
+import tomllib
+from pathlib import Path
+root, profile, agents = sys.argv[1:]
+try:
+    with open(profile, 'rb') as stream:
+        tomllib.load(stream)
+    unknown = set(agents.split(',')) - {'claude', 'codex', 'opencode', 'antigravity'}
+    if unknown:
+        raise ValueError('agentes desconhecidos: ' + ', '.join(sorted(unknown)))
+    for name in ('.harness', '.githooks', 'scripts', 'docs', '.agents', '.agents/rules',
+                 '.agents/workflows', '.codex', '.opencode', '.opencode/plugins',
+                 '.opencode/commands', '.claude'):
+        path = Path(root) / name
+        if path.is_symlink():
+            raise ValueError(f'diretório de instalação é symlink: {name}')
+except (OSError, ValueError) as error:
+    print(f'instalação recusada: {error}', file=sys.stderr)
+    sys.exit(1)
+PYVALIDA
+[ $? -eq 0 ] || exit 1
+
 # A fonte do kit tem de estar em dia antes de copiar dela.
 python3 "$KIT/scripts/sincronizar.py" --verificar >/dev/null || {
     echo "o kit está dessincronizado — rode: python3 $KIT/scripts/sincronizar.py" >&2; exit 1; }
@@ -90,9 +114,14 @@ instala() {
     fi
     CRIADOS+=("$rel")
     [ $VERIFICAR -eq 1 ] && return
-    mkdir -p "$(dirname "$dest")"
-    cp "$origem" "$dest"
-    [ -n "$modo" ] && chmod "$modo" "$dest"
+    local check_path="$dest"
+    while [ "$check_path" != "$ALVO" ]; do
+        [ -L "$check_path" ] && { echo "instalação recusada: caminho atravessa symlink: $rel" >&2; exit 1; }
+        check_path="${check_path%/*}"
+    done
+    mkdir -p "$(dirname "$dest")" || exit 1
+    cp "$origem" "$dest" || exit 1
+    if [ -n "$modo" ]; then chmod "$modo" "$dest" || exit 1; fi
 }
 
 # instala_texto <conteúdo> <destino-relativo>
@@ -115,6 +144,7 @@ link() {
 
 # ---------------------------------------------------------------- núcleo
 instala "$KIT/core/harness_guard.py" ".harness/harness_guard.py" 755
+instala "$KIT/core/documentation.py" ".harness/documentation.py" 755
 instala "$PERFIL" ".harness.toml"
 
 # ---------------------------------------------------------------- git
@@ -128,19 +158,18 @@ if [ $COM_GIT -eq 1 ]; then
 fi
 
 # ---------------------------------------------------------------- docs
-# Só o AGENTS.md instalado é reescrito (diretório de docs + nome do projeto):
-# os demais templates não citam `project_docs/` nem o nome — conferido por
-# `grep -r project_docs templates/docs`.
+# Só o AGENTS.md instalado é reescrito (diretório de docs + nome do projeto).
 if [ $COM_DOCS -eq 1 ]; then
-    AGENTS_TXT="$(sed "s|project_docs/|${DOCS_DIR}/|g" "$KIT/templates/docs/AGENTS.md")"
+    AGENTS_TXT="$(sed "s|docs/|${DOCS_DIR}/|g" "$KIT/templates/docs/AGENTS.md")"
     [ -n "$PROJECT_NAME" ] && AGENTS_TXT="$(printf '%s' "$AGENTS_TXT" | sed "s|<nome do projeto>|${PROJECT_NAME}|g")"
     instala_texto "$AGENTS_TXT" "AGENTS.md"
     link "AGENTS.md" "CLAUDE.md"
     link "AGENTS.md" "GEMINI.md"
-    instala "$KIT/templates/docs/PENDING_GAPS_AND_ROADMAP.md" "$DOCS_DIR/PENDING_GAPS_AND_ROADMAP.md"
-    instala "$KIT/templates/docs/CONCLUSION_ROADMAP_AND_GAPS.md" "$DOCS_DIR/CONCLUSION_ROADMAP_AND_GAPS.md"
-    instala "$KIT/templates/docs/adr/TEMPLATE.md" "$DOCS_DIR/adr/TEMPLATE.md"
-    instala "$KIT/templates/docs/adr/ADR-INDEX.md" "$DOCS_DIR/adr/ADR-INDEX.md"
+    while IFS= read -r f; do
+        rel="${f#"$KIT/templates/docs/"}"
+        case "$rel" in AGENTS.md|agents/*) continue ;; esac
+        instala "$f" "$DOCS_DIR/$rel"
+    done < <(find "$KIT/templates/docs" -type f -name '*.md' | sort)
     instala "$KIT/templates/docs/agents/agents_work.md" ".agents/agents_work.md"
 fi
 

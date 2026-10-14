@@ -11,7 +11,8 @@ Quatro instrumentos, fronteiras rígidas:
 |---|---|---|
 | **ADR** | por que decidimos assim | engenharia |
 | **CHANGELOG** (por repositório) | o que mudou | quem usa |
-| **Roadmap / PENDING** | o que está aberto, em que ordem | todos |
+| **ROADMAP** | direção, resultados e sequência de dependências | todos |
+| **PENDING** | trabalho aberto e próximo passo, com links para os detalhes | todos |
 | **GAP** | qual é o obstáculo e de que tipo | todos |
 
 ## Os três tipos de GAP — três tratamentos
@@ -24,7 +25,7 @@ Severidade não decide ADR — **raio de impacto decide**. Caso de origem: 20 ac
 
 ## ADR: quando, como, e quando NÃO
 
-- Numeração global num índice único (nunca reiniciada por repositório); confira o próximo número livre antes de criar.
+- Escopo de numeração definido pelo projeto: único no repo simples; central ou por membro conforme contrato explícito no metarrepositório. Confira IDs e reservas antes de criar; não imponha um meta-repo onde ele não existe.
 - Template de 5 seções: Status · Contexto · Decisão · Consequências · Referências. Contexto cita achado concreto (arquivo, comportamento, incidente), nunca abstração. Consequências listam o lado ruim ao lado dos ganhos.
 - Status: Proposto → Aceito | Rejeitado | Descontinuado | Substituído. **Aceite é do dono do projeto.** O agente propõe, mede, e registra; não aceita a própria proposta.
 - **Nunca ADR preventiva**: escreve-se quando o time vai de fato atravessar o abismo, não por antecipação.
@@ -35,7 +36,11 @@ Severidade não decide ADR — **raio de impacto decide**. Caso de origem: 20 ac
 ## Épico e Insight
 
 - **Épico**: frente de trabalho com fases, aceites e dependências, num documento próprio; o roadmap aponta para ele.
-- **Insight**: registro de investigação, análise ou decisão de planejamento que **não é ADR nem épico** (ex.: comparação de opções, auditoria, mapa de prioridades). Declara no topo o tipo, a decisão do dono (se houve) e o que NÃO decide. Fatos não medidos continuam gates; o insight não os converte em conclusão.
+- **Insight**: registro de investigação, análise ou decisão de planejamento que **não é ADR nem épico** (ex.: comparação de opções, mapa de prioridades). Declara evidências, hipóteses e encaminhamento. Auditoria delimitada tem categoria própria, com método, achados e cobertura. Fatos não medidos continuam hipóteses; o insight não os converte em conclusão.
+
+Padrão documental em `docs/README.md`; classificação pela skill `classificar-documentacao`.
+Épicos e ADRs pertinentes mantêm links nos dois sentidos. Fechamento segue
+`encerrar-documentacao`; não cria aceite humano nem certificação retroativa.
 
 ## PENDING e CONCLUSION — o par que não tem exceção
 

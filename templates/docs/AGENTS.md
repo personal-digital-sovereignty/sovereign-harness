@@ -6,10 +6,20 @@
 
 ## Leitura obrigatória
 
-- Arquitetura: `<project_docs/ARQUITETURA.md>`
-- Pendências: `project_docs/PENDING_GAPS_AND_ROADMAP.md` — só o que está aberto.
-- Histórico: `project_docs/CONCLUSION_ROADMAP_AND_GAPS.md` — o "porquê" de tudo que já foi decidido ou entregue.
-- Quadro de trabalho: `<caminho absoluto do .agents/agents_work.md no diretório principal>` (skill `quadro-de-trabalho`).
+- Organização: [docs/README.md](docs/README.md).
+- Arquitetura: [docs/architecture/README.md](docs/architecture/README.md).
+- Pendências: [docs/PENDING.md](docs/PENDING.md) — somente trabalho aberto.
+- Direção e sequência: [docs/ROADMAP.md](docs/ROADMAP.md).
+- Histórico: [docs/CONCLUSION.md](docs/CONCLUSION.md).
+- Quadro de trabalho: `.agents/agents_work.md`; configurar fonte canônica quando houver várias sessões.
+
+## Perfil do projeto
+
+Declarar topologia (repo único, monorepo ou metarrepositório), membros e fronteiras
+de responsabilidade, branch principal/remotes quando existirem, stack, comandos
+reais de validação, idiomas/locales e autoridades de aprovação. O harness não
+infere esses contratos a partir de nomes de pasta. Membros independentes mantêm
+seus próprios hooks e histórico; o meta-repo não executa testes deles implicitamente.
 
 ## Comunicação
 
@@ -20,38 +30,39 @@
 
 1. **Nenhum fallback silencioso.** Falhou: logue e estoure o erro (fail-loud).
 2. **Credenciais** só por ambiente/cofre; nunca no código, em fixture, commit, PR ou log (skill `manuseio-segredos`).
-3. **Dependência de sistema ausente**: reproduza o erro exato, identifique o pacote, entregue o comando ao dono. O agente não roda `sudo`.
+3. **Dependência de sistema ausente**: reproduza o erro, identifique o pacote e siga as permissões e autorizações vigentes do projeto; nunca contorne o requisito silenciosamente.
 
 ## Testes e validação
 
-1. Testes unitários, de integração, E2E e de usabilidade **sempre** executados. Nunca mocke o que pode rodar localmente (skill `validacao-real-sem-mock`).
-2. E2E de interface com `<Playwright>`.
+1. Executar os testes necessários ao comportamento alterado e os gates obrigatórios do projeto. Validar integrações reais quando disponíveis; doubles não certificam um serviço ou ambiente real.
+2. Escolher ferramenta E2E conforme a interface. Projeto sem interface não precisa de teste de navegador; registrar a razão.
 3. Todo verificador novo é provado no sentido negativo (skill `disciplina-de-validacao`).
 4. Bateria completa antes de qualquer push — aplicada pelo `.githooks/pre-push`.
 
 ## Git, gates e release
 
-1. **Branch por agente**: `<agente>/<slug>`. Nunca commit direto em `main` (o guard bloqueia).
+1. **Branch por trabalho** conforme política do projeto; configurar ramos protegidos no guard.
 2. **Cadência**: alterou, commitou — commits atômicos, mensagem com o quê, o porquê e o objetivo. Mudança indivisível em vários arquivos vai num commit só.
-3. **Autoria** é sempre do dono; trailer `Co-Authored-By` do agente é permitido.
+3. **Autoria** segue a identidade Git configurada e a política de contribuição. Não alterar identidade global.
 4. **Gates locais**: `git config core.hooksPath .githooks` em cada clone. Gate reprovou: corrija o código ou o gate (skill `gate-reprovou`). Exceção consciente: `HARNESS_SKIP=<gate>`, registrada no PENDING no ato.
-5. **Merge só pelo `scripts/merge_gate.sh <PR>`**, que valida o RESULTADO do merge. Nunca o merge direto da plataforma; nunca `[skip ci]`.
+5. **Merge** pelo mecanismo aprovado pelo projeto, com validação do resultado integrado. Adaptador GitHub só se aplica quando essa for a forge; repositório local não exige PR remoto. Não desativar os checks requeridos.
 6. **Release**: `<processo>`. Versão semântica conferida nos manifestos antes de qualquer push de versão.
 
 ## Documentação viva
 
-- `CHANGELOG.md` e `ROADMAP.md` atualizados em cada repositório a cada entrega.
+- `CHANGELOG.md` registra mudanças; `docs/ROADMAP.md` registra sequência. Respeitar arquivos já existentes e definir uma única fonte por escopo.
 - **Toda entrega fecha nos dois registros centrais** (PENDING e CONCLUSION), de qualquer tamanho.
 - Decisão estrutural: ADR **antes** de executar; GAP de Código não tem ADR; nunca ADR preventiva (skill `governanca-de-decisao`).
 - Pressuposto de produto assumido por uma decisão é nomeado na ADR/CHANGELOG.
+- Use `classificar-documentacao` ao criar/mover documentos e `encerrar-documentacao` no fechamento. Épicos e ADRs mantêm vínculos nos dois sentidos; IDs e decisões históricas permanecem estáveis.
 
 ## Coexistência multi-agente
 
 1. Antes de tarefa não trivial: `git status`/`git diff` nos repositórios alvo e leitura do quadro.
 2. Nunca `git add -A`/`.`; confira `git diff --cached --stat` antes do commit.
-3. Worktree se deriva de `origin/main`, nunca de `main` local.
+3. Worktree deriva da referência atualizada escolhida pelo projeto; conferir remote e branch. Sem remote, a referência local é a fonte.
 4. `rm`/`mv`/`npm install` em worktree atravessam symlinks: `readlink -f` antes (skill `estado-compartilhado-multi-agente`).
-5. Mergeou: apague branch local e remota com prova por dois métodos (skill `varredura-git-multi-repo`).
+5. Limpeza de branches segue a política e autorização do projeto, com prova de integração e preservação de trabalho exclusivo.
 6. Ao terminar: quadro atualizado e handover.
 
 ## Skills do projeto

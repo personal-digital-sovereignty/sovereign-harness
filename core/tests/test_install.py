@@ -38,6 +38,40 @@ class Instalador(unittest.TestCase):
         self.assertTrue((self.alvo / ".agents" / "rules" / "sovereign-10-guardrails.md").is_file())
         self.assertTrue((self.alvo / ".agents" / "workflows" / "quadro.md").is_file())
         self.assertFalse((self.alvo / ".agent").exists())
+        for name in ("PENDING.md", "ROADMAP.md", "CONCLUSION.md", "epics/README.md", "gaps/README.md", "templates/EPIC.md"):
+            self.assertTrue((self.alvo / "docs" / name).is_file(), name)
+        self.assertFalse((self.alvo / "project_docs").exists())
+
+    def test_perfil_invalido_recusa_sem_instalar(self):
+        profile = Path(self._tmp.name) / "invalid.toml"
+        profile.write_text("[harness\n")
+        result = instalar(self.alvo, "--perfil", str(profile))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.alvo / ".harness").exists())
+
+    def test_agente_desconhecido_recusa_sem_instalar(self):
+        result = instalar(self.alvo, "--agentes", "inexistente")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.alvo / ".harness").exists())
+
+    def test_pasta_symlink_nao_escreve_fora(self):
+        outside = Path(self._tmp.name) / "outside"
+        outside.mkdir()
+        (self.alvo / ".harness").symlink_to(outside, target_is_directory=True)
+        result = instalar(self.alvo)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_verificar_nao_escreve_no_alvo(self):
+        result = instalar(self.alvo, "--verificar")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([p.name for p in self.alvo.iterdir()], [".git"])
+
+    def test_documentacao_instalada_tem_links_validos(self):
+        self.assertEqual(instalar(self.alvo).returncode, 0)
+        result = subprocess.run(["python3", str(self.alvo / ".harness/documentation.py"), "check"],
+                                cwd=self.alvo, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_idempotente(self):
         self.assertEqual(instalar(self.alvo).returncode, 0)
@@ -68,24 +102,25 @@ class Instalador(unittest.TestCase):
         self.assertFalse((self.alvo / ".claude" / "skills").exists())
         self.assertTrue((self.alvo / ".agents" / "skills").is_dir())
 
-    def test_docs_dir_docs_e_refs_verdes(self):
-        r = instalar(self.alvo, "--docs-dir", "docs")
+    def test_docs_dir_customizado_e_refs_verdes(self):
+        r = instalar(self.alvo, "--docs-dir", "engineering")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertTrue((self.alvo / "docs" / "PENDING_GAPS_AND_ROADMAP.md").is_file())
-        self.assertTrue((self.alvo / "docs" / "adr" / "ADR-INDEX.md").is_file())
-        self.assertFalse((self.alvo / "project_docs").exists())
+        self.assertTrue((self.alvo / "engineering" / "PENDING.md").is_file())
+        self.assertTrue((self.alvo / "engineering" / "ROADMAP.md").is_file())
+        self.assertTrue((self.alvo / "engineering" / "adr" / "ADR-INDEX.md").is_file())
+        self.assertFalse((self.alvo / "docs").exists())
         agents = (self.alvo / "AGENTS.md").read_text("utf-8")
-        self.assertIn("docs/PENDING_GAPS_AND_ROADMAP.md", agents)
-        self.assertIn("docs/CONCLUSION_ROADMAP_AND_GAPS.md", agents)
-        self.assertNotIn("project_docs/", agents)
+        self.assertIn("engineering/PENDING.md", agents)
+        self.assertIn("engineering/CONCLUSION.md", agents)
+        self.assertNotIn("docs/", agents)
         self.assertIn("<nome do projeto>", agents)  # sem --project-name, placeholder fica
-        self.assertIn("refs em docs: em dia", r.stdout)
+        self.assertIn("refs em engineering: em dia", r.stdout)
 
     def test_docs_dir_padrao_e_refs_verdes(self):
         r = instalar(self.alvo)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertTrue((self.alvo / "project_docs" / "PENDING_GAPS_AND_ROADMAP.md").is_file())
-        self.assertIn("refs em project_docs: em dia", r.stdout)
+        self.assertTrue((self.alvo / "docs" / "PENDING.md").is_file())
+        self.assertIn("refs em docs: em dia", r.stdout)
 
     def test_docs_dir_invalido_falha_alto(self):
         for ruim in ("/absoluto", "../fora", ""):
@@ -100,11 +135,11 @@ class Instalador(unittest.TestCase):
         self.assertEqual(primeira, "# Instruções para agentes de IA — Meu Projeto")
 
     def test_idempotente_com_flags(self):
-        self.assertEqual(instalar(self.alvo, "--docs-dir", "docs").returncode, 0)
-        r = instalar(self.alvo, "--docs-dir", "docs")
+        self.assertEqual(instalar(self.alvo, "--docs-dir", "engineering").returncode, 0)
+        r = instalar(self.alvo, "--docs-dir", "engineering")
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("criados:    0", r.stdout)
-        self.assertIn("refs em docs: em dia", r.stdout)
+        self.assertIn("refs em engineering: em dia", r.stdout)
 
 
 if __name__ == "__main__":
