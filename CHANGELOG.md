@@ -1,5 +1,14 @@
 # Changelog — Sovereign Harness
 
+## [Não lançado]
+
+### Added
+- `scripts/verificar_refs.py`: confere que todo alvo local `.md` (link ou code span) existe; ignora URL externa e placeholder `<...>`; fail-loud com `arquivo:linha`. 6 testes em `core/tests/test_verificar_refs.py` (inclui prova negativa).
+
+### Changed
+- Templates sem resíduo do projeto de origem: `merge_gate.sh` (exemplo `file:../sp-ui-core` e prefixo `sp-` do worktree temporário neutralizados), `pre-push`/`pre-commit` (contagens de repositórios e `Rust (sp-service)` generalizados), exemplo do template de ADR neutro.
+- `.gitignore` novo: `__pycache__/`, `*.py[cod]`, `.venv/`, `node_modules/`, `.DS_Store`.
+
 ## [0.1.0] — 2026-10-13 — primeira publicação
 
 Publicado como repositório público `personal-digital-sovereignty/sovereign-harness`, licença MIT.
