@@ -3,7 +3,6 @@
 Fila aberta; direção em [ROADMAP](ROADMAP.md), desfechos em [CONCLUSION](CONCLUSION.md).
 Base de avaliação: [release 0.1.0](audits/release-0.1.0.md).
 
-- P1: rejeitar configuração inválida no guard; não substituir política por defaults.
 - P1: distinguir falha de consulta remota de ausência de checks no adaptador GitHub.
 - P1: definir validação explícita por projeto e topologia, sem inferir Rust/Node.
 - P1: vincular gates ao estado efetivamente enviado/integrado, incluindo múltiplos refs e mudança da base.

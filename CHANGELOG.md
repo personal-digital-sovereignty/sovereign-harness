@@ -15,6 +15,7 @@
 - AGENTS separa política do projeto de método reutilizável; a validação executa somente gates declarados pelo projeto.
 
 ### Fixed
+- Guard recusa política inválida ou explicitamente ausente, com exit 2 no hook, sem retornar a defaults.
 - Instalador recusa perfil TOML inválido, agente desconhecido e diretórios de destino por symlink, com controles negativos. Limites restantes da instalação estão no PENDING.
 
 ## [0.2.0] — 2026-10-15 — fase 1 agnóstica
