@@ -1,5 +1,16 @@
 # Conclusões — Sovereign Harness
 
+## 2026-10-14 — Falhas explícitas e caminhos literais
+
+Adaptador GitHub recusa erro de consulta, resposta inválida, ausência de check,
+todos pulados e estados não verdes. Quatro testes do parser exercitam positivos
+e negativos; não houve merge remoto nesta validação. Head/base são reconsultados
+depois dos gates; atomicidade com a base ainda depende do servidor.
+Instalador gera hooks com escaping separado de shell/JSON: comando real executado
+num caminho com espaços, aspas e substituições de shell sem executar o conteúdo
+do nome. Os 13 testes do instalador passaram. Verificador documental distingue
+exemplos em code spans de links reais; oito testes de migração/links passaram.
+
 ## 2026-10-14 — Gates portáveis e topologia explícita
 
 Instalação padrão deixa de presumir GitHub, Rust/Node, origin/main e quadro

@@ -18,6 +18,9 @@
 - Instalação usa docs/PENDING.md, docs/ROADMAP.md e docs/CONCLUSION.md; AGENTS distingue política do projeto de método reutilizável.
 
 ### Fixed
+- Consulta de checks do adaptador GitHub recusa erros e ausência de evidência verde.
+- Hooks Codex preservam caminhos com metacaracteres sem interpretação pelo shell.
+- Verificador de links ignora exemplos literais em code spans.
 - Guard recusa política inválida ou explicitamente ausente, com exit 2 no hook, sem retornar a defaults.
 - Instalador recusa perfil TOML inválido, agente desconhecido e diretórios de destino por symlink, com controles negativos. Limites restantes da instalação estão no PENDING.
 

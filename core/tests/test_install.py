@@ -3,6 +3,7 @@ verificação, não só texto. Roda o install.sh de verdade em diretórios desca
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import tempfile
 import unittest
@@ -13,7 +14,8 @@ INSTALL = KIT / "install.sh"
 
 
 def instalar(alvo: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["bash", str(INSTALL), str(alvo), *args], capture_output=True, text=True)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    return subprocess.run(["bash", str(INSTALL), str(alvo), *args], env=env, capture_output=True, text=True)
 
 
 class Instalador(unittest.TestCase):
@@ -21,7 +23,8 @@ class Instalador(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.alvo = Path(self._tmp.name) / "proj"
         self.alvo.mkdir()
-        subprocess.run(["git", "init", "-q", str(self.alvo)], check=True)
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        subprocess.run(["git", "init", "-q", str(self.alvo)], check=True, env=env)
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -50,6 +53,25 @@ class Instalador(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue((self.alvo / "scripts/merge_gate.sh").is_file())
         self.assertTrue((self.alvo / ".agents/quadro.sh").is_file())
+
+    def test_hook_codex_preserva_caminho_com_metacaracteres(self):
+        target = Path(self._tmp.name) / "quote' space $(touch INJECTED) `touch INJECTED`"
+        target.mkdir()
+        result = instalar(target, "--agentes", "codex")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads((target / ".codex/hooks.json").read_text())
+        command = data["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        result = subprocess.run(["sh", "-c", command], cwd=target, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((target / "INJECTED").exists())
+
+    def test_pre_push_instalado_recusa_perfil_incompleto(self):
+        self.assertEqual(instalar(self.alvo).returncode, 0)
+        result = subprocess.run([str(self.alvo / ".githooks/pre-push")], cwd=self.alvo,
+                                input=f"refs/heads/trunk {'1'*40} refs/heads/trunk {'0'*40}\n",
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("configured=true", result.stderr)
 
     def test_perfil_invalido_recusa_sem_instalar(self):
         profile = Path(self._tmp.name) / "invalid.toml"

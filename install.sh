@@ -159,6 +159,7 @@ if [ $COM_GIT -eq 1 ]; then
     instala "$KIT/templates/git/pre-push-portable" ".githooks/pre-push" 755
     instala "$KIT/templates/git/pre-commit-portable" ".githooks/pre-commit" 755
   else
+    instala "$KIT/core/github_checks.py" ".harness/github_checks.py" 755
     instala "$KIT/templates/radar.example.tsv" ".harness/radar.tsv"   # lido pelo pre-push do kit
     instala "$KIT/templates/git/pre-push" ".githooks/pre-push" 755
     instala "$KIT/templates/git/pre-commit" ".githooks/pre-commit" 755
@@ -202,7 +203,20 @@ fi
 # ---------------------------------------------------------------- Codex
 if tem codex; then
     GUARD_ABS="$RAIZ_CANONICA/.harness/harness_guard.py"
-    instala_texto "$(sed "s#__HARNESS_GUARD__#$GUARD_ABS#g" "$KIT/plugins/codex/hooks.json")
+    HOOK_JSON=$(python3 - "$KIT/plugins/codex/hooks.json" "$GUARD_ABS" <<'PYHOOK'
+import json
+import shlex
+import sys
+with open(sys.argv[1]) as stream:
+    data = json.load(stream)
+for groups in data['hooks'].values():
+    for group in groups:
+        for hook in group['hooks']:
+            hook['command'] = hook['command'].replace('"__HARNESS_GUARD__"', shlex.quote(sys.argv[2]))
+print(json.dumps(data, ensure_ascii=False, indent=2))
+PYHOOK
+) || exit 1
+    instala_texto "$HOOK_JSON
 " ".codex/hooks.json"
 fi
 

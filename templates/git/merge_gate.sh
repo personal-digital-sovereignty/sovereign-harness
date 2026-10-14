@@ -15,8 +15,7 @@
 #   3. roda o que o hook não cobre e a esteira remota cobre: actionlint, ruff+pytest
 #      de `python_workers/`, e o build de produção (no Shell, o bundle federado);
 #   4. consulta o sinal remoto (`gh pr checks`, o devsecops.yml no runner self-hosted):
-#      check vermelho ou pendente RECUSA; PR sem check nenhum avisa e segue (o runner
-#      pode estar desligado — o gate local decide sozinho);
+#      erro, check vermelho/pendente ou ausência de check aprovado RECUSAM;
 #   5. só então chama `gh pr merge`.
 #
 # Uso:
@@ -143,17 +142,19 @@ fi
 if skipped remote; then
     echo -e "${YELLOW}⏭  remote: pulado (HARNESS_SKIP)${NC}"
 else
-    CHECKS=$(gh pr checks "$PR" --json name,bucket 2>/dev/null || echo '[]')
-    N=$(jq 'length' <<<"$CHECKS"); RUINS=$(jq -r '[.[]|select(.bucket=="fail" or .bucket=="cancel")|.name]|join(", ")' <<<"$CHECKS")
-    PEND=$(jq -r '[.[]|select(.bucket=="pending")|.name]|join(", ")' <<<"$CHECKS")
-    if [ "$N" -eq 0 ]; then
-        echo -e "${YELLOW}⚠️  remote: o PR não tem NENHUM check (runner desligado? commit com [skip ci]?) — o gate local decide sozinho${NC}"
-    elif [ -n "$RUINS" ]; then
-        echo -e "${RED}❌ remote: check(s) vermelho(s) no runner: $RUINS${NC}"; FAILED+=("remote")
-    elif [ -n "$PEND" ]; then
-        echo -e "${RED}❌ remote: check(s) ainda rodando: $PEND — espere terminar${NC}"; FAILED+=("remote")
-    else
-        echo -e "${GREEN}✅ remote: $N check(s) verdes no head ${HEAD_SHA:0:10}${NC}"
+    CHECKS=$(gh pr checks "$PR" --json name,bucket)
+    CHECKS_RC=$?
+    if ! printf %s "$CHECKS" | python3 "$REPO_ROOT/.harness/github_checks.py" "$CHECKS_RC"; then
+        FAILED+=("remote")
+    fi
+    # Recusar mudanças observáveis desde o início dos gates. A corrida entre
+    # esta leitura e o merge exige proteção/merge queue no servidor.
+    CURRENT_HEAD=$(gh pr view "$PR" --json headRefOid --jq .headRefOid) || CURRENT_HEAD=""
+    CURRENT_BASE=$(git ls-remote origin refs/heads/main) || CURRENT_BASE=""
+    CURRENT_BASE=${CURRENT_BASE%%[[:space:]]*}
+    if [ "$CURRENT_HEAD" != "$HEAD_SHA" ] || [ "$CURRENT_BASE" != "$BASE_SHA" ]; then
+        echo "remote: head/base mudou ou não pôde ser consultado; repita a validação" >&2
+        FAILED+=("remote-revision")
     fi
 fi
 

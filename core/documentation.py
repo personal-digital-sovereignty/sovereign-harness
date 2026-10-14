@@ -149,9 +149,9 @@ def migrate(root: Path, plan: Path, apply: bool, aliases: list[str]) -> dict:
             if old != new:
                 # x impede sobrescrever um destino surgido depois do preflight.
                 with dst.open("xb") as stream:
+                    completed.append(old)
                     stream.write(content)
                 os.chmod(dst, src.stat().st_mode)
-                completed.append(old)
                 src.unlink()
             else:
                 completed.append(old)
@@ -189,6 +189,8 @@ def check(root: Path, directories: list[str], aliases: list[str]) -> list[dict]:
                 continue
             if fenced or line.startswith("    "):
                 continue
+            # Exemplos literais de Markdown não são links navegáveis.
+            line = re.sub(r"(`+)(?!`)(.+?)(?<!`)\1(?!`)", "", line)
             for match in [*LINK.finditer(line), *REFERENCE.finditer(line)]:
                 target, _ = target_path(root, name, match[2], aliases)
                 if target is not None and not (root / target).exists():

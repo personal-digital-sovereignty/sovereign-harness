@@ -108,7 +108,7 @@ class Documentation(unittest.TestCase):
         self.assertEqual((child / "README.md").read_text(), "old/a.md")
 
     def test_link_checker_ignores_code_and_remote_but_finds_real_break(self):
-        self.put("docs/a.md", "```md\n[exemplo](ausente.md)\n```\n[web](https://example.com)\n[quebrado](real.md)\n")
+        self.put("docs/a.md", "```md\n[exemplo](ausente.md)\n```\n`[literal](url)` e ``[outro](example)``\n[web](https://example.com)\n[quebrado](real.md)\n")
         failures = docs.check(self.root, ["docs"], [])
         self.assertEqual([(f["source"], f["target"]) for f in failures], [("docs/a.md", "docs/real.md")])
 

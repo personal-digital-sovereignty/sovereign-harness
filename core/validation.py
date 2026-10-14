@@ -33,6 +33,8 @@ def configuration(root):
     with (root / ".harness.toml").open("rb") as stream:
         config = tomllib.load(stream)
     project = config.get("project", {})
+    if not isinstance(project, dict):
+        raise ValueError("project deve ser uma tabela")
     topology = project.get("topology", "repository")
     if topology not in ("repository", "monorepo", "meta-repository"):
         raise ValueError("project.topology: repository, monorepo ou meta-repository")
@@ -46,6 +48,8 @@ def configuration(root):
         if topology == "meta-repository" and Path(git(path, "rev-parse", "--show-toplevel")).resolve() != path:
             raise ValueError(f"membro não é repositório independente: {member}")
     validation = config.get("validation", {})
+    if not isinstance(validation, dict):
+        raise ValueError("validation deve ser uma tabela")
     if validation.get("configured") is not True:
         raise ValueError("defina validation.configured=true somente após configurar os gates reais do projeto")
     gates = validation.get("gates", [])
