@@ -313,12 +313,12 @@ gate_semgrep() {
 run_gate semgrep gate_semgrep
 
 # =============================================================================
-# Gates 4-6 — específicos por stack. O mesmo arquivo serve aos 8 repositórios
+# Gates 4-6 — específicos por stack. O mesmo arquivo serve a vários repositórios
 # (era assim com o hook de gitleaks); o que muda é a stack detectada.
 # =============================================================================
 
 if [ -f "Cargo.toml" ]; then
-    # ---------- Rust (sp-service) ----------
+    # ---------- Rust ----------
     # `cargo clippy` faz a checagem de tipos do `cargo check` e os lints de uma vez,
     # sobre o mesmo alvo (`--all-targets`, testes inclusive). `-D warnings`: lint
     # novo reprova o push — a dívida conhecida (33 lints) foi zerada junto com a
