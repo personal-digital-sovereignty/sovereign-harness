@@ -23,7 +23,7 @@
 #
 #     git config core.hooksPath "$(pwd)/.githooks"   # caminho ABSOLUTO do diretório principal
 #
-# Exceção consciente, no padrão dos 8 repositórios de código:
+# Exceção consciente, no padrão dos repositórios do projeto:
 #     HARNESS_SKIP=quadro git commit ...
 # =============================================================================
 set -uo pipefail
