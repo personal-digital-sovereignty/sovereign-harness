@@ -62,6 +62,18 @@ class VerificarRefs(unittest.TestCase):
         r = rodar(self.base / "docs", self.base)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_texto_de_link_nao_e_alvo(self):
+        self.doc("docs/b.md", "# B\n")
+        self.doc("docs/a.md", "# A\n[`b.md`](b.md)\n[`sumido.md`](b.md)\n")
+        r = rodar(self.base / "docs", self.base)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_destino_de_link_quebrado_acusa(self):
+        self.doc("docs/a.md", "# A\n[`b.md`](sumido.md)\n")
+        r = rodar(self.base / "docs", self.base)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("sumido.md", r.stdout)
+
     def test_docs_inexistente_falha_alto(self):
         r = rodar(self.base / "nao-existe", self.base)
         self.assertEqual(r.returncode, 1)

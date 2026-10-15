@@ -38,14 +38,22 @@ def eh_referencia_resolvivel(alvo: str) -> bool:
 
 
 def alvos_de(texto: str) -> list[tuple[int, str]]:
-    """(linha, alvo) para cada referência local a .md no texto."""
+    """(linha, alvo) para cada referência local a .md no texto.
+
+    Code span que é TEXTO de um link ([`arq.md`](destino)) não é alvo: o que
+    se confere é o destino. Sem isso, o idioma `[`nome.md`](caminho)` — o
+    normal em docs — vira falso positivo."""
     achados: list[tuple[int, str]] = []
     for nro, linha in enumerate(texto.splitlines(), 1):
-        for m in LINK_MD.finditer(linha):
+        links = list(LINK_MD.finditer(linha))
+        for m in links:
             alvo = m.group(1).split("#", 1)[0].strip()
             if alvo.lower().endswith(".md") and eh_referencia_resolvivel(alvo):
                 achados.append((nro, alvo))
+        ocupados = [(m.start(), m.end()) for m in links]
         for m in CODE_SPAN_MD.finditer(linha):
+            if any(ini <= m.start() < fim for ini, fim in ocupados):
+                continue
             alvo = m.group(1).split("#", 1)[0].strip()
             if alvo.lower().endswith(".md") and eh_referencia_resolvivel(alvo):
                 achados.append((nro, alvo))

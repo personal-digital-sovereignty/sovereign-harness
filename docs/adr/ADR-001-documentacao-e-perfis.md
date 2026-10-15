@@ -11,12 +11,12 @@ podem já ter `docs/`, instruções e hooks; a instalação deve preservar esse 
 
 ## Decisão em implementação
 
-- `docs/README.md` descreve a organização. `PENDING.md` contém pendências;
-  `ROADMAP.md`, direção e sequência; `CONCLUSION.md`, desfechos rastreáveis.
+- [`README.md`](../README.md) descreve a organização. [`PENDING.md`](../PENDING.md) contém pendências;
+  [`ROADMAP.md`](../ROADMAP.md), direção e sequência; [`CONCLUSION.md`](../CONCLUSION.md), desfechos rastreáveis.
 - Categorias: `insights`, `adr`, `audits`, `security-audit`, `templates`,
   `design-system`, `epics`, `gaps`; `architecture` e `runbooks` preservam a
   distinção entre desenho e operação. Categoria vazia tem guia, não conteúdo fictício.
-- `AGENTS.md` fica na raiz como entrada dos agentes. Método reutilizável fica
+- [`AGENTS.md`](../../templates/docs/AGENTS.md) fica na raiz como entrada dos agentes. Método reutilizável fica
   em skills; regras e incidentes específicos permanecem no projeto consumidor.
 - Épico descreve resultado e aceites; ADR registra decisão; gap registra obstáculo;
   insight registra investigação. Relações são links relativos; decisão aceita

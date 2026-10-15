@@ -52,6 +52,7 @@ class Instalador(unittest.TestCase):
         result = instalar(self.alvo, "--git-profile", "github-rust-node")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue((self.alvo / "scripts/merge_gate.sh").is_file())
+        self.assertTrue((self.alvo / ".agents/test_merge_gate_base.sh").is_file())
         self.assertTrue((self.alvo / ".agents/quadro.sh").is_file())
 
     def test_hook_codex_preserva_caminho_com_metacaracteres(self):

@@ -14,9 +14,17 @@
 #      types, test, lint) — uma fonte de verdade só, nada duplicado;
 #   3. roda o que o hook não cobre e a esteira remota cobre: actionlint, ruff+pytest
 #      de `python_workers/`, e o build de produção (no Shell, o bundle federado);
-#   4. consulta o sinal remoto (`gh pr checks`, o devsecops.yml no runner self-hosted):
+#   4. consulta o sinal remoto (`gh pr checks` via `.harness/github_checks.py`):
 #      erro, check vermelho/pendente ou ausência de check aprovado RECUSAM;
-#   5. só então chama `gh pr merge`.
+#   5. vincula o merge à base validada, em três momentos (gate `base`,
+#      INCONDICIONAL — não herda o skip do `remote`): re-lê head/base depois
+#      dos gates e recusa se mudou; re-lê origin/main no último instante antes
+#      do merge; depois do merge, confere que o primeiro-pai da main nova é a
+#      base validada (vale para squash e merge; --rebase avisa e pula).
+#      Sem merge queue no servidor, a corrida entre a última leitura e o merge
+#      não se elimina pelo cliente — se estreita (segundos) e se detecta alto
+#      no pós-merge, com o par esperado/medido;
+#   6. só então chama `gh pr merge`.
 #
 # Uso:
 #   scripts/merge_gate.sh <numero-do-PR> [--dry-run] [-- <args extras do gh pr merge>]
@@ -24,7 +32,7 @@
 #
 # Exceção consciente, nomeada, igual ao pre-push:
 #   HARNESS_SKIP=trivy,build scripts/merge_gate.sh 42
-#   gates daqui: actionlint, python, build, remote   (mais os 6 do pre-push)
+#   gates daqui: actionlint, python, build, remote, base   (mais os 6 do pre-push)
 #
 # Mantenha este arquivo IDÊNTICO em todos os repositórios do projeto (confira com md5sum ao alterar).
 # =============================================================================
@@ -138,7 +146,7 @@ if [ -f package.json ] && jq -e '.scripts.build' package.json >/dev/null 2>&1; t
     run_gate build gate_build
 fi
 
-# ── 3. sinal remoto: o devsecops.yml do PR no runner self-hosted ─────────────────────
+# ── 3. sinal remoto ──────────────────────────────────────────────────────────────
 if skipped remote; then
     echo -e "${YELLOW}⏭  remote: pulado (HARNESS_SKIP)${NC}"
 else
@@ -147,15 +155,29 @@ else
     if ! printf %s "$CHECKS" | python3 "$REPO_ROOT/.harness/github_checks.py" "$CHECKS_RC"; then
         FAILED+=("remote")
     fi
-    # Recusar mudanças observáveis desde o início dos gates. A corrida entre
-    # esta leitura e o merge exige proteção/merge queue no servidor.
-    CURRENT_HEAD=$(gh pr view "$PR" --json headRefOid --jq .headRefOid) || CURRENT_HEAD=""
-    CURRENT_BASE=$(git ls-remote origin refs/heads/main) || CURRENT_BASE=""
-    CURRENT_BASE=${CURRENT_BASE%%[[:space:]]*}
-    if [ "$CURRENT_HEAD" != "$HEAD_SHA" ] || [ "$CURRENT_BASE" != "$BASE_SHA" ]; then
-        echo "remote: head/base mudou ou não pôde ser consultado; repita a validação" >&2
-        FAILED+=("remote-revision")
-    fi
+fi
+
+# ── 3b. vínculo com a base validada (INCONDICIONAL: pular o `remote` não dispensa
+# provar que o merge vai entrar sobre o que foi validado) ──────────────────────
+conferir_revisoes() {
+    # Re-lê o remoto e compara com HEAD_SHA/BASE_SHA capturados após o fetch.
+    # Mudança OU leitura impossível recusam: revalidar é mais barato que mergear
+    # no escuro. Sem merge queue no servidor, isto estreita a janela, não a fecha —
+    # o pós-merge (abaixo) detecta alto se algo entrou na janela restante.
+    local head base
+    head=$(gh pr view "$PR" --json headRefOid --jq .headRefOid) || { echo "base: não consegui reler o head do PR"; return 1; }
+    base=$(git ls-remote origin refs/heads/main) || { echo "base: não consegui reler origin/main"; return 1; }
+    base=${base%%[[:space:]]*}
+    [ -n "$head" ] && [ -n "$base" ] || { echo "base: leitura vazia do head ou da base"; return 1; }
+    [ "$head" = "$HEAD_SHA" ] || { echo "base: head do PR mudou (${HEAD_SHA:0:10} → ${head:0:10}); rode de novo"; return 1; }
+    [ "$base" = "$BASE_SHA" ] || { echo "base: origin/main mudou (${BASE_SHA:0:10} → ${base:0:10}); rode de novo"; return 1; }
+    echo "base: head e origin/main idênticos aos validados"
+}
+echo -e "${BLUE}── base validada (head/base não podem ter mudado)${NC}"
+if skipped base; then
+    echo -e "${YELLOW}⏭  base: pulado (HARNESS_SKIP) — o merge entra sem vínculo com a base validada${NC}"
+elif ! conferir_revisoes; then
+    FAILED+=("base")
 fi
 
 cd "$REPO_ROOT" || die "não consegui voltar para $REPO_ROOT"
@@ -168,6 +190,11 @@ fi
 echo -e "\n${GREEN}✅ Todos os gates passaram sobre o resultado do merge.${NC}"
 if [ $DRY -eq 1 ]; then echo "   --dry-run: o merge NÃO foi feito."; exit 0; fi
 
+# Último instante possível: a base pode ter andado nos segundos desde o gate `base`.
+git fetch -q origin main || die "não consegui reler origin/main antes do merge"
+PRE_MERGE_BASE=$(git rev-parse origin/main)
+[ "$PRE_MERGE_BASE" = "$BASE_SHA" ] || die "origin/main andou após a validação (${BASE_SHA:0:10} → ${PRE_MERGE_BASE:0:10}) — rode de novo"
+
 [ ${#EXTRA[@]} -eq 0 ] && EXTRA=(--squash --delete-branch)
 MERGE_CWD=$(mktemp -d) || die "não consegui criar diretório isolado para o merge remoto"
 # Fora de um checkout, o gh não tenta trocar/atualizar a main local depois do merge.
@@ -177,3 +204,18 @@ if ! (cd "$MERGE_CWD" && gh pr merge "$PR" --repo "$REPO_SLUG" --match-head-comm
 fi
 rmdir "$MERGE_CWD" 2>/dev/null || echo -e "${YELLOW}⚠️  merge: diretório temporário preservado em $MERGE_CWD${NC}"
 echo -e "${GREEN}✅ PR #$PR mergeado.${NC} Atualize a main local: git switch main && git pull --ff-only"
+
+# Vínculo pós-merge: o primeiro-pai da main nova tem de ser a base validada.
+# Squash (padrão) e merge commit produzem primeiro-pai = base do momento do merge;
+# --rebase reescreve a história e este teste não se aplica (avisa e pula).
+if [[ " ${EXTRA[*]} " == *" --rebase "* ]]; then
+    echo -e "${YELLOW}⚠️  base: estratégia --rebase, pós-verificação de pai não se aplica — confira à mão${NC}"
+else
+    git fetch -q origin main || die "merge feito, mas não consegui reler origin/main para conferir"
+    NOVO_PAI=$(git rev-parse "origin/main^1") || die "merge feito, mas origin/main não tem pai legível"
+    if [ "$NOVO_PAI" != "$BASE_SHA" ]; then
+        echo -e "${RED}❌ o merge entrou sobre OUTRA base (validada ${BASE_SHA:0:10}, pai real ${NOVO_PAI:0:10}) — alguém publicou na janela; decida com o dono e registre no PENDING${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✅ merge vinculado à base validada (pai ${BASE_SHA:0:10}).${NC}"
+fi
