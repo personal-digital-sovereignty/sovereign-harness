@@ -76,9 +76,9 @@ git fetch -q origin main "$HEAD_REF" || die "git fetch falhou (ssh-agent? ver sk
 [ "$(git rev-parse "origin/$HEAD_REF")" = "$HEAD_SHA" ] || die "origin/$HEAD_REF não é o head do PR — alguém publicou no meio; rode de novo"
 BASE_SHA=$(git rev-parse origin/main)
 
-# Irmão do repo (não /tmp): o build do Shell e o `file:../sp-ui-core` resolvem por caminho
-# relativo ao diretório-pai. O prefixo `sp-` cai no `sp-*/` do .gitignore do meta-repo.
-WT="$(dirname "$REPO_ROOT")/sp-merge-gate.$$.${REPO_NAME}"
+# Irmão do repo (não /tmp): builds que resolvem dependência por caminho
+# relativo ao diretório-pai (ex.: `file:../<pacote-local>`) funcionam aqui.
+WT="$(dirname "$REPO_ROOT")/harness-merge-gate.$$.${REPO_NAME}"
 limpa() {
     [ -L "$WT/node_modules" ] && rm -f "$WT/node_modules"      # só o LINK, nunca o alvo
     git worktree remove --force "$WT" >/dev/null 2>&1

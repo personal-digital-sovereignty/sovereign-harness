@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Node (só checagem de tipos do plugin OpenCode, sem lockfile no repo)
+node_modules/
+
+# OS
+.DS_Store

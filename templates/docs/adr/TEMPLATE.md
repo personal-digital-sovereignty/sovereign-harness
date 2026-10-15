@@ -2,7 +2,7 @@
 
 **Status**: Proposto | Aceito | Rejeitado | Descontinuado | Substituído (por ADR-0YY)
 **Data**: AAAA-MM-DD
-**Repositório(s) afetado(s)**: <ex: sp-service, ou "cross-cutting: sp-service + sp-ui-coding">
+**Repositório(s) afetado(s)**: <ex: nome-do-repo, ou "cross-cutting: api + app-web">
 
 ## Contexto
 
