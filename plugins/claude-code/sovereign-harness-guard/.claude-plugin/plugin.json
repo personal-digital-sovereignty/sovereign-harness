@@ -1,6 +1,6 @@
 {
   "name": "sovereign-harness-guard",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Guardrails do método Sovereign: bloqueia antes de executar as ações que já custaram trabalho real com vários agentes na mesma árvore (git add amplo, --no-verify, hooks desligados, [skip ci], stash compartilhado, rm através de symlink, commit em branch protegida, merge sem gate, cópia do quadro, .env no stdout...). Escape nominal por regra. Inclui os comandos /quadro, /validar, /fechamento, /adr e /gap.",
   "author": {
     "name": "Sovereign Pair"

@@ -1,6 +1,6 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
+## [0.4.0] — 2026-10-15 — validador de índice/identidade de ADR
 
 ### Added
 - `scripts/verificar_adr.py`: validador opcional de índice/identidade de ADR (follow-up do GAP-20261015-035) — ID numérico duplicado reprova nomeando os arquivos, índice sem linha e próximo-livre errado também; 7 testes. `ADR-INDEX.md` do próprio kit criado (o dogfood acusou a ausência); skill `doc-governance` referencia a ferramenta.

@@ -51,7 +51,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
     print("harness_guard: Python >= 3.11 é obrigatório (tomllib).", file=sys.stderr)
     sys.exit(1)
 
-VERSAO = "0.3.1"
+VERSAO = "0.4.0"
 
 
 class ConfigError(ValueError):
