@@ -1,6 +1,6 @@
 {
   "name": "sovereign-harness-metodo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Skills do método Sovereign de engenharia assistida por IA: viés de plausibilidade, disciplina de validação, estado compartilhado multi-agente, quadro de trabalho, governança de decisão (GAP/ADR/PENDING/CONCLUSION), prosa vira gate, validação real sem mock, medição sem autoengano, hermeticidade de teste, gates, varredura git e segredos.",
   "author": {
     "name": "Sovereign Pair"

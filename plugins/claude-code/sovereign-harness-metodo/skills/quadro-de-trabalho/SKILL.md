@@ -5,6 +5,11 @@ description: Protocolo do quadro de trabalho multi-agente — o único lugar ond
 
 # Quadro de trabalho — quem está fazendo o quê, agora
 
+Aplicar quando o projeto adota coordenação por quadro. Em repo de uma pessoa ou
+sem fonte configurada, não impor quadro, helper ou metarrepositório. O helper Git
+e seus gates abaixo pertencem ao perfil opcional github-rust-node; outro projeto
+pode declarar outra fonte/processo. Não afirmar que um gate está ativo sem verificá-lo.
+
 Regras de coexistência dizem para não atropelar a outra sessão, mas nenhuma mostra **onde ela está**. O quadro fecha esse buraco. Escrever nele custa 30 segundos; descobrir o conflito depois custa a rodada inteira.
 
 ## O caminho canônico é UM só

@@ -51,7 +51,11 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
     print("harness_guard: Python >= 3.11 é obrigatório (tomllib).", file=sys.stderr)
     sys.exit(1)
 
-VERSAO = "0.2.0"
+VERSAO = "0.3.0"
+
+
+class ConfigError(ValueError):
+    """Uma política solicitada não pode ser substituída por outra em silêncio."""
 
 # --------------------------------------------------------------------------- #
 # Configuração
@@ -86,7 +90,9 @@ def achar_config(inicio: str) -> Path | None:
     explicito = os.environ.get("HARNESS_CONFIG")
     if explicito:
         p = Path(explicito)
-        return p if p.is_file() else None
+        if not p.is_file():
+            raise ConfigError("HARNESS_CONFIG aponta para arquivo inexistente")
+        return p
     atual = Path(inicio).resolve()
     for d in (atual, *atual.parents):
         candidato = d / ".harness.toml"
@@ -103,9 +109,23 @@ def carregar_config(cwd: str) -> tuple[dict, str]:
         with open(caminho, "rb") as f:
             dados = tomllib.load(f)
     except (OSError, tomllib.TOMLDecodeError) as e:
-        # Fail-loud: config quebrada não pode virar "sem regras".
-        print(f"harness_guard: {caminho} ilegível ({e}); usando os padrões do kit.", file=sys.stderr)
-        return PADRAO, f"padrão do kit (config ilegível: {caminho})"
+        raise ConfigError(f"configuração ilegível: {caminho} ({type(e).__name__})") from e
+    for section, defaults in PADRAO.items():
+        values = dados.get(section, {})
+        if not isinstance(values, dict):
+            raise ConfigError(f"{section} deve ser tabela")
+        for key, value in values.items():
+            if key not in defaults:
+                raise ConfigError(f"chave desconhecida: {section}.{key}")
+            if not isinstance(value, type(defaults[key])) or (isinstance(value, list) and not all(isinstance(item, str) for item in value)):
+                raise ConfigError(f"tipo inválido: {section}.{key}")
+    ids = {rule.id for rule in REGRAS}
+    for key in ("desligadas", "apenas_avisar", "bloquear"):
+        if set(dados.get("harness", {}).get(key, [])) - ids:
+            raise ConfigError(f"regra desconhecida: harness.{key}")
+    escape = dados.get("harness", {}).get("escape_env", PADRAO["harness"]["escape_env"])
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", escape):
+        raise ConfigError("harness.escape_env deve ser nome de variável de ambiente")
     return _mesclar(PADRAO, dados), str(caminho)
 
 
@@ -1007,4 +1027,8 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except ConfigError as error:
+        print(f"harness_guard: {error}; ação recusada, corrija a política.", file=sys.stderr)
+        sys.exit(2)

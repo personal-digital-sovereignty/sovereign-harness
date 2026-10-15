@@ -262,6 +262,22 @@ class Escapes(Base):
 
 
 class Configuracao(Base):
+    def test_config_invalida_nao_regride_para_defaults(self):
+        for index, content in enumerate(('[harness\n', '[harness]\ndesligadas = "sudo"', '[harness]\ndesligadas = ["nao-existe"]', '[harness]\napena_avisar = []')):
+            with self.subTest(content=content):
+                path = self.raiz / f'invalid-{index}.toml'
+                path.write_text(content)
+                result = subprocess.run([sys.executable, str(GUARD), 'hook'],
+                    input=json.dumps({'cwd':str(self.wt),'tool_name':'Bash','tool_input':{'command':'git status'}}),
+                    capture_output=True,text=True,env={**self.env,'HARNESS_CONFIG':str(path)})
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn('ação recusada', result.stderr)
+
+    def test_config_explicita_ausente_recusa(self):
+        result = subprocess.run([sys.executable, str(GUARD), 'config', 'harness.escape_env'],
+            capture_output=True,text=True,env={**self.env,'HARNESS_CONFIG':str(self.raiz/'missing.toml')})
+        self.assertEqual(result.returncode, 2)
+
     def test_desligar_e_apenas_avisar(self):
         cfg = self.raiz / "aviso.toml"
         cfg.write_text('[harness]\ndesligadas = ["sudo"]\napenas_avisar = ["add-tudo"]\n')

@@ -13,9 +13,10 @@
 #   --skills-existentes <dir>      skills vivem em outro diretório: .agents/skills vira
 #                                  symlink relativo para <dir> (prefira mover para .agents/skills)
 #   --sem-git                      não instala pre-push/pre-commit/merge_gate/quadro.sh
+#   --git-profile portable|github-rust-node  padrão: portable, gates declarados no TOML
 #   --sem-docs                     não instala AGENTS.md, PENDING/CONCLUSION, ADR, quadro
 #   --docs-dir <dir>               onde vivem os docs do projeto, relativo à raiz
-#                                  (padrão: project_docs). O AGENTS.md instalado tem
+#                                  (padrão: docs). O AGENTS.md instalado tem
 #                                  suas refs reescritas para este diretório.
 #   --project-name <nome>          preenche o título do AGENTS.md instalado; sem a
 #                                  flag, o placeholder <nome do projeto> fica para
@@ -38,10 +39,11 @@ AGENTES="claude,codex,opencode,antigravity"
 PERFIL="$KIT/core/harness.example.toml"
 SKILLS_EXISTENTES=""
 PROJECT_NAME=""
-DOCS_DIR="project_docs"
+DOCS_DIR="docs"
 SEM_SKILLS=0
 RAIZ_CANONICA=""
 COM_GIT=1; COM_DOCS=1; VERIFICAR=0
+GIT_PROFILE="portable"
 ALVO=""
 
 while [ $# -gt 0 ]; do
@@ -54,6 +56,7 @@ while [ $# -gt 0 ]; do
         --sem-skills) SEM_SKILLS=1 ;;
         --raiz-canonica) RAIZ_CANONICA="$2"; shift ;;
         --sem-git) COM_GIT=0 ;;
+        --git-profile) GIT_PROFILE="$2"; shift ;;
         --sem-docs) COM_DOCS=0 ;;
         --verificar) VERIFICAR=1 ;;
         -h|--help) sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -74,6 +77,32 @@ RAIZ_CANONICA="${RAIZ_CANONICA:-$ALVO}"
 [ -f "$PERFIL" ] || { echo "perfil inexistente: $PERFIL" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 (>= 3.11) é obrigatório para o guard" >&2; exit 1; }
 
+# Validar entradas e fronteira antes de criar qualquer arquivo no projeto.
+python3 - "$ALVO" "$PERFIL" "$AGENTES" <<'PYVALIDA'
+import sys
+import tomllib
+from pathlib import Path
+root, profile, agents = sys.argv[1:]
+try:
+    with open(profile, 'rb') as stream:
+        tomllib.load(stream)
+    unknown = set(agents.split(',')) - {'claude', 'codex', 'opencode', 'antigravity'}
+    if unknown:
+        raise ValueError('agentes desconhecidos: ' + ', '.join(sorted(unknown)))
+    for name in ('.harness', '.githooks', 'scripts', 'docs', '.agents', '.agents/rules',
+                 '.agents/workflows', '.codex', '.opencode', '.opencode/plugins',
+                 '.opencode/commands', '.claude'):
+        path = Path(root) / name
+        if path.is_symlink():
+            raise ValueError(f'diretório de instalação é symlink: {name}')
+except (OSError, ValueError) as error:
+    print(f'instalação recusada: {error}', file=sys.stderr)
+    sys.exit(1)
+PYVALIDA
+[ $? -eq 0 ] || exit 1
+case "$GIT_PROFILE" in portable|github-rust-node) ;; *) echo "perfil Git desconhecido: $GIT_PROFILE" >&2; exit 1 ;; esac
+HARNESS_CONFIG="$PERFIL" python3 "$KIT/core/harness_guard.py" config harness.escape_env >/dev/null || exit 1
+
 # A fonte do kit tem de estar em dia antes de copiar dela.
 python3 "$KIT/scripts/sincronizar.py" --verificar >/dev/null || {
     echo "o kit está dessincronizado — rode: python3 $KIT/scripts/sincronizar.py" >&2; exit 1; }
@@ -90,9 +119,14 @@ instala() {
     fi
     CRIADOS+=("$rel")
     [ $VERIFICAR -eq 1 ] && return
-    mkdir -p "$(dirname "$dest")"
-    cp "$origem" "$dest"
-    [ -n "$modo" ] && chmod "$modo" "$dest"
+    local check_path="$dest"
+    while [ "$check_path" != "$ALVO" ]; do
+        [ -L "$check_path" ] && { echo "instalação recusada: caminho atravessa symlink: $rel" >&2; exit 1; }
+        check_path="${check_path%/*}"
+    done
+    mkdir -p "$(dirname "$dest")" || exit 1
+    cp "$origem" "$dest" || exit 1
+    if [ -n "$modo" ]; then chmod "$modo" "$dest" || exit 1; fi
 }
 
 # instala_texto <conteúdo> <destino-relativo>
@@ -115,32 +149,39 @@ link() {
 
 # ---------------------------------------------------------------- núcleo
 instala "$KIT/core/harness_guard.py" ".harness/harness_guard.py" 755
+instala "$KIT/core/documentation.py" ".harness/documentation.py" 755
+instala "$KIT/core/validation.py" ".harness/validation.py" 755
 instala "$PERFIL" ".harness.toml"
 
 # ---------------------------------------------------------------- git
 if [ $COM_GIT -eq 1 ]; then
+  if [ "$GIT_PROFILE" = portable ]; then
+    instala "$KIT/templates/git/pre-push-portable" ".githooks/pre-push" 755
+    instala "$KIT/templates/git/pre-commit-portable" ".githooks/pre-commit" 755
+  else
+    instala "$KIT/core/github_checks.py" ".harness/github_checks.py" 755
     instala "$KIT/templates/radar.example.tsv" ".harness/radar.tsv"   # lido pelo pre-push do kit
     instala "$KIT/templates/git/pre-push" ".githooks/pre-push" 755
     instala "$KIT/templates/git/pre-commit" ".githooks/pre-commit" 755
     instala "$KIT/templates/git/merge_gate.sh" "scripts/merge_gate.sh" 755
     instala "$KIT/templates/git/quadro.sh" ".agents/quadro.sh" 755
     instala "$KIT/templates/git/test_quadro.sh" ".agents/test_quadro.sh" 755
+  fi
 fi
 
 # ---------------------------------------------------------------- docs
-# Só o AGENTS.md instalado é reescrito (diretório de docs + nome do projeto):
-# os demais templates não citam `project_docs/` nem o nome — conferido por
-# `grep -r project_docs templates/docs`.
+# Só o AGENTS.md instalado é reescrito (diretório de docs + nome do projeto).
 if [ $COM_DOCS -eq 1 ]; then
-    AGENTS_TXT="$(sed "s|project_docs/|${DOCS_DIR}/|g" "$KIT/templates/docs/AGENTS.md")"
+    AGENTS_TXT="$(sed "s|docs/|${DOCS_DIR}/|g" "$KIT/templates/docs/AGENTS.md")"
     [ -n "$PROJECT_NAME" ] && AGENTS_TXT="$(printf '%s' "$AGENTS_TXT" | sed "s|<nome do projeto>|${PROJECT_NAME}|g")"
     instala_texto "$AGENTS_TXT" "AGENTS.md"
     link "AGENTS.md" "CLAUDE.md"
     link "AGENTS.md" "GEMINI.md"
-    instala "$KIT/templates/docs/PENDING_GAPS_AND_ROADMAP.md" "$DOCS_DIR/PENDING_GAPS_AND_ROADMAP.md"
-    instala "$KIT/templates/docs/CONCLUSION_ROADMAP_AND_GAPS.md" "$DOCS_DIR/CONCLUSION_ROADMAP_AND_GAPS.md"
-    instala "$KIT/templates/docs/adr/TEMPLATE.md" "$DOCS_DIR/adr/TEMPLATE.md"
-    instala "$KIT/templates/docs/adr/ADR-INDEX.md" "$DOCS_DIR/adr/ADR-INDEX.md"
+    while IFS= read -r f; do
+        rel="${f#"$KIT/templates/docs/"}"
+        case "$rel" in AGENTS.md|agents/*) continue ;; esac
+        instala "$f" "$DOCS_DIR/$rel"
+    done < <(find "$KIT/templates/docs" -type f -name '*.md' | sort)
     instala "$KIT/templates/docs/agents/agents_work.md" ".agents/agents_work.md"
 fi
 
@@ -162,7 +203,20 @@ fi
 # ---------------------------------------------------------------- Codex
 if tem codex; then
     GUARD_ABS="$RAIZ_CANONICA/.harness/harness_guard.py"
-    instala_texto "$(sed "s#__HARNESS_GUARD__#$GUARD_ABS#g" "$KIT/plugins/codex/hooks.json")
+    HOOK_JSON=$(python3 - "$KIT/plugins/codex/hooks.json" "$GUARD_ABS" <<'PYHOOK'
+import json
+import shlex
+import sys
+with open(sys.argv[1]) as stream:
+    data = json.load(stream)
+for groups in data['hooks'].values():
+    for group in groups:
+        for hook in group['hooks']:
+            hook['command'] = hook['command'].replace('"__HARNESS_GUARD__"', shlex.quote(sys.argv[2]))
+print(json.dumps(data, ensure_ascii=False, indent=2))
+PYHOOK
+) || exit 1
+    instala_texto "$HOOK_JSON
 " ".codex/hooks.json"
 fi
 

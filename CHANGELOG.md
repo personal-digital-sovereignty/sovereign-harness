@@ -1,20 +1,31 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
+## [0.3.0] — 2026-10-15 — contrato portátil de engenharia
 
 ### Added
-- `install.sh`: `--docs-dir <dir>` (default `project_docs`, relativo, validado fail-loud) com reescrita das refs no `AGENTS.md` instalado; `--project-name <nome>` preenche o título; gate de refs pós-instalação (`verificar_refs.py` sobre a árvore recém-escrita, reportado sem mudar o exit).
+- `install.sh`: `--docs-dir <dir>` (padrão `docs`, relativo, validado fail-loud) com reescrita das refs no `AGENTS.md` instalado; `--project-name <nome>` preenche o título; gate de refs pós-instalação sobre a árvore recém-escrita.
 - Skill `doc-governance` + comando `doc`: classificação épico/GAP/insight/ADR, Epic↔ADR nos dois sentidos, `verificar_refs.py` como gate, guarda de índices e quarentena `_legacy`.
 - Teste anti-divergência estendido: `doc-governance` tem seus marcadores de ciclo travados.
-
-## [0.2.0] — 2026-10-15 — fase 1 agnóstica
-
-### Added
-- `scripts/verificar_refs.py`: confere que todo alvo local `.md` (link ou code span) existe; ignora URL externa e placeholder `<...>`; fail-loud com `arquivo:linha`. 6 testes em `core/tests/test_verificar_refs.py` (inclui prova negativa).
+- Gates declarativos por argv/cwd e topologias repository/monorepo/meta-repository, com membros explícitos e testes reais sem remote ou branch main.
+- Avaliação reproduzível da 0.1.0, contrato documental e registros em docs.
+- Migração por mapa explícito, preservação de anexos e verificação de links locais; sete testes com Git real.
+- Templates em docs para épicos, gaps, insights, ADRs, auditorias, arquitetura, runbooks e design system; skills de classificação e fechamento sincronizadas nos plugins.
 
 ### Changed
-- Templates sem resíduo do projeto de origem: `merge_gate.sh` (exemplo `file:../sp-ui-core` e prefixo `sp-` do worktree temporário neutralizados), `pre-push`/`pre-commit` (contagens de repositórios e `Rust (sp-service)` generalizados), exemplo do template de ADR neutro.
-- `.gitignore` novo: `__pycache__/`, `*.py[cod]`, `.venv/`, `node_modules/`, `.DS_Store`.
+- `--docs-dir` passa a usar `docs` por padrão; a instalação cria PENDING, ROADMAP e CONCLUSION, além das categorias de engenharia.
+- AGENTS separa política do projeto de método reutilizável; a validação executa somente gates declarados pelo projeto.
+- Instalação padrão usa hooks portáveis; fluxo GitHub/Rust/Node e quadro compartilhado tornam-se perfil opt-in. Push recusa contrato não configurado, checkout rastreado sujo e refs diferentes do HEAD validado.
+- Instalação usa docs/PENDING.md, docs/ROADMAP.md e docs/CONCLUSION.md; AGENTS distingue política do projeto de método reutilizável.
+- README, comandos e skill de quadro distinguem mecanismo opcional de requisito universal; o roadmap raiz aponta para a fonte canônica em docs.
+
+### Fixed
+- Consulta de checks do adaptador GitHub recusa erros e ausência de evidência verde.
+- Hooks Codex preservam caminhos com metacaracteres sem interpretação pelo shell.
+- Verificador de links ignora exemplos literais em code spans.
+- Guard recusa política inválida ou explicitamente ausente, com exit 2 no hook, sem retornar a defaults.
+- Instalador recusa perfil TOML inválido, agente desconhecido e diretórios de destino por symlink, com controles negativos. Limites restantes da instalação estão no PENDING.
+
+## [0.2.0] — 2026-10-15 — fase 1 agnóstica
 
 ## [0.1.0] — 2026-10-13 — primeira publicação
 

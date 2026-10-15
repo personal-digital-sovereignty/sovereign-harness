@@ -6,17 +6,31 @@ Método e ferramentas para desenvolver software com vários agentes de IA (Claud
 
 ## O que vem no kit
 
+**Desenvolvimento após 0.1.0:** avaliação crítica em
+[docs/audits/release-0.1.0.md](docs/audits/release-0.1.0.md), direção em
+[docs/ROADMAP.md](docs/ROADMAP.md). Os templates agora usam `docs/`, com PENDING,
+ROADMAP e CONCLUSION separados, categorias de engenharia e skills para
+classificação/fechamento. `core/documentation.py` migra por mapa explícito e
+verifica destinos de links locais. Não valida âncoras, links web ou referências
+em prosa; consumidores externos exigem revisão própria.
+
+**Instalação padrão:** gates declarativos por projeto, sem inferir stack, forge,
+branch ou membros. Preencha o contrato de validação antes do primeiro push.
+O perfil legado GitHub/Rust/Node é opt-in com `--git-profile github-rust-node`.
+Ver [configuração e limites](docs/CONFIGURATION.md). Instalação não certifica
+uma stack, SO ou integração de agente não exercitados.
+
 | Peça | Onde | Para quê |
 |---|---|---|
 | Guard do agente | `core/harness_guard.py` | bloqueia antes de executar 17 classes de ação perigosa (git add amplo, `--no-verify`, hooks desligados, stash compartilhado, `rm` através de symlink, commit em branch protegida, merge sem gate, `.env` no stdout, descarte de trabalho…). Escape nominal por regra. Só stdlib, Python ≥ 3.11 |
-| Skills de método (13) | `skills/` | viés de plausibilidade, disciplina de validação, estado compartilhado, quadro de trabalho, governança de decisão, prosa vira gate, validação sem mock, medição sem autoengano, hermeticidade, gates, varredura git, segredos, governança documental |
+| Skills de método (15) | `skills/` | método, validação, segurança, governança documental, classificação e encerramento rastreável |
 | Comandos (6) | `commands/` | `quadro`, `validar`, `fechamento`, `adr`, `gap`, `doc` |
 | Claude Code | `.claude-plugin/marketplace.json`, `plugins/claude-code/` | plugin `sovereign-harness-guard` (hooks + comandos); `sovereign-harness-metodo` (skills) é opcional — as skills chegam pelo symlink `.claude/skills` |
 | Codex | `.agents/plugins/marketplace.json`, `plugins/codex/` | plugin de skills; guard via `.codex/hooks.json` do projeto |
 | OpenCode | `plugins/opencode/` | plugin TS em `tool.execute.before` |
 | Antigravity | `plugins/antigravity/` | regras `always_on` e workflows |
-| Gates de git | `templates/git/` | pre-push (6 gates + radar), pre-commit do quadro, merge gate, helper do quadro com teste hermético |
-| Documentação | `templates/docs/` | AGENTS.md, PENDING/CONCLUSION, ADR, quadro |
+| Gates de git | `core/validation.py`, `templates/git/` | comandos por argv/cwd; pre-push verifica checkout e refs; pre-commit verifica links. Adaptador GitHub/Rust/Node opcional |
+| Documentação | `templates/docs/` | AGENTS.md, PENDING, ROADMAP, CONCLUSION, categorias e templates; migração explícita e verificador |
 | Instalador | `install.sh` | idempotente, nunca sobrescreve |
 
 ## Convenção: tudo de agente em `.agents/`
@@ -26,7 +40,7 @@ Método e ferramentas para desenvolver software com vários agentes de IA (Claud
 | Instruções | `AGENTS.md` | `CLAUDE.md`, `GEMINI.md` → symlink |
 | Skills | `.agents/skills/<nome>/SKILL.md` — único lugar de escrita | `.claude/skills → ../.agents/skills` (o Claude Code só descobre esse caminho e segue o symlink); OpenCode e Codex leem `.agents/skills` nativamente |
 | Regras e workflows do Antigravity | `.agents/rules/`, `.agents/workflows/` | — |
-| Quadro de trabalho | `.agents/agents_work.md` + `.agents/quadro.sh` | — |
+| Quadro de trabalho, se adotado | `.agents/agents_work.md` | fonte e processo definidos pelo projeto; helper Git do perfil opcional |
 
 O instalador cria o symlink do Claude e reporta como conflito um `.claude/skills` que seja diretório real.
 
@@ -51,7 +65,12 @@ git clone https://github.com/personal-digital-sovereignty/sovereign-harness
 ./install.sh /caminho/do/projeto
 ```
 
-Opções: `--agentes claude,codex,opencode,antigravity`, `--perfil <toml>`, `--sem-skills`, `--skills-existentes <dir>`, `--sem-git`, `--sem-docs`, `--docs-dir <dir>` (padrão `project_docs`), `--project-name <nome>`, `--raiz-canonica <dir>`. Depois: preencher o `AGENTS.md`, `git config core.hooksPath "$(pwd)/.githooks"`, instalar os plugins indicados no relatório e rodar os canários.
+Opções: `--agentes claude,codex,opencode,antigravity`, `--perfil <toml>`, `--git-profile portable|github-rust-node`, `--sem-skills`, `--skills-existentes <dir>`, `--sem-git`, `--sem-docs`, `--docs-dir <dir>` (padrão `docs`), `--project-name <nome>`, `--raiz-canonica <dir>`. Depois, no projeto alvo: preencher `AGENTS.md` e `.harness.toml`, executar `python3 .harness/validation.py check`, ativar `git config core.hooksPath .githooks`, instalar os plugins indicados no relatório e rodar os canários.
+
+Python ≥ 3.11, Git e Bash são requisitos do instalador/hooks. A validação desta
+mudança foi em Linux; Windows nativo e macOS precisam de validação própria.
+Confira o [índice documental](docs/README.md). O guard é heurístico e pode ter
+falsos positivos/negativos: não é sandbox nem fronteira de segurança.
 
 | Agente | Estado da integração |
 |---|---|
