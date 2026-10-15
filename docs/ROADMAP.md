@@ -2,16 +2,17 @@
 
 ## 1. Contrato documental e migração
 
-Organização em docs, registros separados, templates e skills de classificação e
-fechamento; migração por mapa explícito e prova de preservação. Desenho em
-[ADR-001](adr/ADR-001-documentacao-e-perfis.md). Piloto: documentação real do projeto
-de origem e instalações descartáveis de repositório simples/metarrepositório.
+Entregue no candidato a release 0.3.0: organização em docs, registros separados,
+templates e skills de classificação e fechamento; migração por mapa explícito e
+prova de preservação. Desenho em [ADR-001](adr/ADR-001-documentacao-e-perfis.md).
+Próxima prova: instalações reais fora do projeto de origem.
 
 ## 2. Núcleo independente de projeto
 
-Políticas explícitas de validação e membros, adaptadores de forge separados,
-instalação/atualização verificável e correção dos P1 da avaliação. Não anunciar
-compatibilidade universal enquanto houver gates específicos implícitos.
+Políticas explícitas de validação e membros e adaptadores de forge separados
+foram entregues no candidato 0.3.0. Restam a atualização gerenciada e a correção
+do P1 do perfil legado GitHub/Rust/Node; não anunciar suporte de plataforma ou
+agente sem prova correspondente.
 
 ## 3. Certificação e distribuição
 

@@ -1,5 +1,19 @@
 # Conclusões — Sovereign Harness
 
+## 2026-10-15 — Contrato portátil completo preparado para 0.3.0
+
+O instalador passa a criar `docs/` por padrão, com PENDING, ROADMAP, CONCLUSION,
+categorias e templates; `--docs-dir` mantém a escolha explícita de outra raiz.
+O AGENTS instalado é neutro, e a validação executa apenas gates argv/cwd declarados
+pelo projeto, para repositório único, monorepo ou metarrepositório. O perfil
+GitHub/Rust/Node continua opt-in. A migração documental exige mapa explícito,
+preserva anexos e rejeita colisões, symlinks e links locais quebrados.
+
+Evidência: sincronização de 45 cópias, 80 testes, shellcheck e teste hermético
+do quadro passaram em Linux. As quatro superfícies de versão foram alinhadas em
+`0.3.0` no commit `6ff3f46`. PENDING mantém apenas certificações de agentes/SO,
+paridade en-US, uso externo e os P1/P2 ainda não implementados.
+
 ## 2026-10-14 — Falhas explícitas e caminhos literais
 
 Adaptador GitHub recusa erro de consulta, resposta inválida, ausência de check,
