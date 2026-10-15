@@ -11,7 +11,7 @@
     {
       "name": "sovereign-harness-metodo",
       "source": "./plugins/claude-code/sovereign-harness-metodo",
-      "description": "As 12 skills do método (instale só se o projeto ainda não tem as próprias)"
+      "description": "As 13 skills do método (instale só se o projeto ainda não tem as próprias)"
     }
   ]
 }

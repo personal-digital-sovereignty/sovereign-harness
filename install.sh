@@ -14,6 +14,12 @@
 #                                  symlink relativo para <dir> (prefira mover para .agents/skills)
 #   --sem-git                      não instala pre-push/pre-commit/merge_gate/quadro.sh
 #   --sem-docs                     não instala AGENTS.md, PENDING/CONCLUSION, ADR, quadro
+#   --docs-dir <dir>               onde vivem os docs do projeto, relativo à raiz
+#                                  (padrão: project_docs). O AGENTS.md instalado tem
+#                                  suas refs reescritas para este diretório.
+#   --project-name <nome>          preenche o título do AGENTS.md instalado; sem a
+#                                  flag, o placeholder <nome do projeto> fica para
+#                                  quem instala preencher.
 #   --verificar                    não escreve nada; lista o que faltaria/conflitaria
 #   --raiz-canonica <dir>          caminho absoluto usado nos arquivos que gravam caminho
 #                                  (o .codex/hooks.json). Padrão: o próprio alvo. Use quando
@@ -31,6 +37,8 @@ KIT="$(cd "$(dirname "$0")" && pwd)"
 AGENTES="claude,codex,opencode,antigravity"
 PERFIL="$KIT/core/harness.example.toml"
 SKILLS_EXISTENTES=""
+PROJECT_NAME=""
+DOCS_DIR="project_docs"
 SEM_SKILLS=0
 RAIZ_CANONICA=""
 COM_GIT=1; COM_DOCS=1; VERIFICAR=0
@@ -41,12 +49,14 @@ while [ $# -gt 0 ]; do
         --agentes) AGENTES="$2"; shift ;;
         --perfil) PERFIL="$2"; shift ;;
         --skills-existentes) SKILLS_EXISTENTES="$2"; shift ;;
+        --project-name) PROJECT_NAME="$2"; shift ;;
+        --docs-dir) DOCS_DIR="$2"; shift ;;
         --sem-skills) SEM_SKILLS=1 ;;
         --raiz-canonica) RAIZ_CANONICA="$2"; shift ;;
         --sem-git) COM_GIT=0 ;;
         --sem-docs) COM_DOCS=0 ;;
         --verificar) VERIFICAR=1 ;;
-        -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         -*) echo "opção desconhecida: $1" >&2; exit 1 ;;
         *) [ -z "$ALVO" ] && ALVO="$1" || { echo "argumento inesperado: $1" >&2; exit 1; } ;;
     esac
@@ -54,6 +64,11 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$ALVO" ] || { echo "uso: $0 <alvo> [opções] (--help)" >&2; exit 1; }
 [ -d "$ALVO" ] || { echo "alvo não é diretório: $ALVO" >&2; exit 1; }
+# --docs-dir é relativo à raiz do projeto: absoluto ou com .. é erro, alto e cedo.
+case "$DOCS_DIR" in
+    /*|*..*|"") echo "--docs-dir deve ser relativo à raiz do projeto (ex.: docs): $DOCS_DIR" >&2; exit 1 ;;
+esac
+DOCS_DIR="${DOCS_DIR%/}"
 ALVO="$(cd "$ALVO" && pwd)"
 RAIZ_CANONICA="${RAIZ_CANONICA:-$ALVO}"
 [ -f "$PERFIL" ] || { echo "perfil inexistente: $PERFIL" >&2; exit 1; }
@@ -113,14 +128,19 @@ if [ $COM_GIT -eq 1 ]; then
 fi
 
 # ---------------------------------------------------------------- docs
+# Só o AGENTS.md instalado é reescrito (diretório de docs + nome do projeto):
+# os demais templates não citam `project_docs/` nem o nome — conferido por
+# `grep -r project_docs templates/docs`.
 if [ $COM_DOCS -eq 1 ]; then
-    instala "$KIT/templates/docs/AGENTS.md" "AGENTS.md"
+    AGENTS_TXT="$(sed "s|project_docs/|${DOCS_DIR}/|g" "$KIT/templates/docs/AGENTS.md")"
+    [ -n "$PROJECT_NAME" ] && AGENTS_TXT="$(printf '%s' "$AGENTS_TXT" | sed "s|<nome do projeto>|${PROJECT_NAME}|g")"
+    instala_texto "$AGENTS_TXT" "AGENTS.md"
     link "AGENTS.md" "CLAUDE.md"
     link "AGENTS.md" "GEMINI.md"
-    instala "$KIT/templates/docs/PENDING_GAPS_AND_ROADMAP.md" "project_docs/PENDING_GAPS_AND_ROADMAP.md"
-    instala "$KIT/templates/docs/CONCLUSION_ROADMAP_AND_GAPS.md" "project_docs/CONCLUSION_ROADMAP_AND_GAPS.md"
-    instala "$KIT/templates/docs/adr/TEMPLATE.md" "project_docs/adr/TEMPLATE.md"
-    instala "$KIT/templates/docs/adr/ADR-INDEX.md" "project_docs/adr/ADR-INDEX.md"
+    instala "$KIT/templates/docs/PENDING_GAPS_AND_ROADMAP.md" "$DOCS_DIR/PENDING_GAPS_AND_ROADMAP.md"
+    instala "$KIT/templates/docs/CONCLUSION_ROADMAP_AND_GAPS.md" "$DOCS_DIR/CONCLUSION_ROADMAP_AND_GAPS.md"
+    instala "$KIT/templates/docs/adr/TEMPLATE.md" "$DOCS_DIR/adr/TEMPLATE.md"
+    instala "$KIT/templates/docs/adr/ADR-INDEX.md" "$DOCS_DIR/adr/ADR-INDEX.md"
     instala "$KIT/templates/docs/agents/agents_work.md" ".agents/agents_work.md"
 fi
 
@@ -170,11 +190,25 @@ if tem antigravity; then
     for w in "$KIT"/plugins/antigravity/workflows/*.md; do instala "$w" ".agents/workflows/$(basename "$w")"; done
 fi
 
+# ---------------------------------------------------------------- refs dos docs
+# O instalador garante o que instalou: os docs recém-escritos têm de passar no
+# verificador genérico. Saída é aviso (não muda o exit): projeto real ganha
+# refs próprias depois, e a disciplina contínua vive na skill doc-governance.
+REFS_MSG=""
+if [ $COM_DOCS -eq 1 ] && [ $VERIFICAR -eq 0 ]; then
+    if REFS_OUT=$(python3 "$KIT/scripts/verificar_refs.py" --docs "$ALVO/$DOCS_DIR" --raiz "$ALVO" 2>&1); then
+        REFS_MSG="refs em $DOCS_DIR: em dia"
+    else
+        REFS_MSG="refs em $DOCS_DIR: QUEBRADAS (instalação fresca deveria ser verde — reporte ao kit):\n$REFS_OUT"
+    fi
+fi
+
 # ---------------------------------------------------------------- relatório
 echo ""
 echo "━━━ harness Sovereign → $ALVO $([ $VERIFICAR -eq 1 ] && echo '(--verificar: nada foi escrito)')"
 echo "criados:    ${#CRIADOS[@]}"; printf '   + %s\n' "${CRIADOS[@]+"${CRIADOS[@]}"}"
 echo "já iguais:  ${#IGUAIS[@]}"
+[ -n "$REFS_MSG" ] && printf '%b\n' "$REFS_MSG"
 if [ ${#CONFLITOS[@]} -gt 0 ]; then
     echo "CONFLITOS:  ${#CONFLITOS[@]} (não sobrescritos — compare e mescle à mão)"
     printf '   ! %s\n' "${CONFLITOS[@]}"

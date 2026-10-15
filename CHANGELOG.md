@@ -1,5 +1,12 @@
 # Changelog — Sovereign Harness
 
+## [Não lançado]
+
+### Added
+- `install.sh`: `--docs-dir <dir>` (default `project_docs`, relativo, validado fail-loud) com reescrita das refs no `AGENTS.md` instalado; `--project-name <nome>` preenche o título; gate de refs pós-instalação (`verificar_refs.py` sobre a árvore recém-escrita, reportado sem mudar o exit).
+- Skill `doc-governance` + comando `doc`: classificação épico/GAP/insight/ADR, Epic↔ADR nos dois sentidos, `verificar_refs.py` como gate, guarda de índices e quarentena `_legacy`.
+- Teste anti-divergência estendido: `doc-governance` tem seus marcadores de ciclo travados.
+
 ## [0.2.0] — 2026-10-15 — fase 1 agnóstica
 
 ### Added

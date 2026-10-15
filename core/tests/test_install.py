@@ -68,6 +68,44 @@ class Instalador(unittest.TestCase):
         self.assertFalse((self.alvo / ".claude" / "skills").exists())
         self.assertTrue((self.alvo / ".agents" / "skills").is_dir())
 
+    def test_docs_dir_docs_e_refs_verdes(self):
+        r = instalar(self.alvo, "--docs-dir", "docs")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue((self.alvo / "docs" / "PENDING_GAPS_AND_ROADMAP.md").is_file())
+        self.assertTrue((self.alvo / "docs" / "adr" / "ADR-INDEX.md").is_file())
+        self.assertFalse((self.alvo / "project_docs").exists())
+        agents = (self.alvo / "AGENTS.md").read_text("utf-8")
+        self.assertIn("docs/PENDING_GAPS_AND_ROADMAP.md", agents)
+        self.assertIn("docs/CONCLUSION_ROADMAP_AND_GAPS.md", agents)
+        self.assertNotIn("project_docs/", agents)
+        self.assertIn("<nome do projeto>", agents)  # sem --project-name, placeholder fica
+        self.assertIn("refs em docs: em dia", r.stdout)
+
+    def test_docs_dir_padrao_e_refs_verdes(self):
+        r = instalar(self.alvo)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue((self.alvo / "project_docs" / "PENDING_GAPS_AND_ROADMAP.md").is_file())
+        self.assertIn("refs em project_docs: em dia", r.stdout)
+
+    def test_docs_dir_invalido_falha_alto(self):
+        for ruim in ("/absoluto", "../fora", ""):
+            r = instalar(self.alvo, "--docs-dir", ruim)
+            self.assertEqual(r.returncode, 1, ruim + r.stdout + r.stderr)
+            self.assertIn("--docs-dir", r.stdout + r.stderr)
+
+    def test_project_name_preenche_titulo(self):
+        r = instalar(self.alvo, "--project-name", "Meu Projeto")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        primeira = (self.alvo / "AGENTS.md").read_text("utf-8").splitlines()[0]
+        self.assertEqual(primeira, "# Instruções para agentes de IA — Meu Projeto")
+
+    def test_idempotente_com_flags(self):
+        self.assertEqual(instalar(self.alvo, "--docs-dir", "docs").returncode, 0)
+        r = instalar(self.alvo, "--docs-dir", "docs")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("criados:    0", r.stdout)
+        self.assertIn("refs em docs: em dia", r.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

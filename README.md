@@ -9,8 +9,8 @@ Método e ferramentas para desenvolver software com vários agentes de IA (Claud
 | Peça | Onde | Para quê |
 |---|---|---|
 | Guard do agente | `core/harness_guard.py` | bloqueia antes de executar 17 classes de ação perigosa (git add amplo, `--no-verify`, hooks desligados, stash compartilhado, `rm` através de symlink, commit em branch protegida, merge sem gate, `.env` no stdout, descarte de trabalho…). Escape nominal por regra. Só stdlib, Python ≥ 3.11 |
-| Skills de método (12) | `skills/` | viés de plausibilidade, disciplina de validação, estado compartilhado, quadro de trabalho, governança de decisão, prosa vira gate, validação sem mock, medição sem autoengano, hermeticidade, gates, varredura git, segredos |
-| Comandos (5) | `commands/` | `quadro`, `validar`, `fechamento`, `adr`, `gap` |
+| Skills de método (13) | `skills/` | viés de plausibilidade, disciplina de validação, estado compartilhado, quadro de trabalho, governança de decisão, prosa vira gate, validação sem mock, medição sem autoengano, hermeticidade, gates, varredura git, segredos, governança documental |
+| Comandos (6) | `commands/` | `quadro`, `validar`, `fechamento`, `adr`, `gap`, `doc` |
 | Claude Code | `.claude-plugin/marketplace.json`, `plugins/claude-code/` | plugin `sovereign-harness-guard` (hooks + comandos); `sovereign-harness-metodo` (skills) é opcional — as skills chegam pelo symlink `.claude/skills` |
 | Codex | `.agents/plugins/marketplace.json`, `plugins/codex/` | plugin de skills; guard via `.codex/hooks.json` do projeto |
 | OpenCode | `plugins/opencode/` | plugin TS em `tool.execute.before` |
@@ -51,7 +51,7 @@ git clone https://github.com/personal-digital-sovereignty/sovereign-harness
 ./install.sh /caminho/do/projeto
 ```
 
-Opções: `--agentes claude,codex,opencode,antigravity`, `--perfil <toml>`, `--sem-skills`, `--skills-existentes <dir>`, `--sem-git`, `--sem-docs`, `--raiz-canonica <dir>`. Depois: preencher o `AGENTS.md`, `git config core.hooksPath "$(pwd)/.githooks"`, instalar os plugins indicados no relatório e rodar os canários.
+Opções: `--agentes claude,codex,opencode,antigravity`, `--perfil <toml>`, `--sem-skills`, `--skills-existentes <dir>`, `--sem-git`, `--sem-docs`, `--docs-dir <dir>` (padrão `project_docs`), `--project-name <nome>`, `--raiz-canonica <dir>`. Depois: preencher o `AGENTS.md`, `git config core.hooksPath "$(pwd)/.githooks"`, instalar os plugins indicados no relatório e rodar os canários.
 
 | Agente | Estado da integração |
 |---|---|
