@@ -1,6 +1,6 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
+## [0.3.0] — 2026-10-15 — contrato portátil de engenharia
 
 ### Added
 - `install.sh`: `--docs-dir <dir>` (padrão `docs`, relativo, validado fail-loud) com reescrita das refs no `AGENTS.md` instalado; `--project-name <nome>` preenche o título; gate de refs pós-instalação sobre a árvore recém-escrita.
