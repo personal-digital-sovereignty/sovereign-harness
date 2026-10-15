@@ -30,9 +30,10 @@ jobs:
           persist-credentials: false
       # Toolchains reais por SO: os testes multi-stack usam cargo/npm/ruff/
       # pytest de verdade (fail-loud se ausentes — pular esconderia regressão).
+      # --break-system-packages: runner descartável, sem venv para 2 pacotes.
       - name: Toolchains (Python + Rust)
         run: |
-          python3 -m pip install --quiet ruff pytest
+          python3 -m pip install --quiet --break-system-packages ruff pytest
           python3 -m ruff --version && python3 -m pytest --version
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable 2026-10-09
         with:
