@@ -626,11 +626,29 @@ def r_worktree_main_local(ctx: Contexto):
     return out
 
 
+def _raiz_logica(cwd: str, topo: str) -> str:
+    """Raiz do repo no mesmo plano (lógico) do cwd: sobe procurando `.git`.
+    O `git rev-parse --show-toplevel` devolve o caminho resolvido (getcwd do
+    kernel); o chamador passa o caminho lógico ($PWD, ~, /tmp). Comparar os
+    dois planos nunca casa — no macOS (/tmp e /var sob /private) isso virava
+    falso LIBERAR na rm-symlink: o `rm` digitado "dentro" nunca casava com o
+    topo resolvido. Fallback: topo como veio."""
+    atual = cwd if os.path.isabs(cwd) else os.path.abspath(cwd)
+    while True:
+        if os.path.lexists(os.path.join(atual, ".git")):
+            return atual
+        pai = os.path.dirname(atual)
+        if pai == atual:
+            return topo
+        atual = pai
+
+
 def _sai_da_arvore(alvo: str, cwd: str, topo: str) -> bool:
     textual = os.path.normpath(os.path.join(cwd, os.path.expanduser(alvo)))
-    topo_real = os.path.realpath(topo)
-    if not (textual == topo or textual.startswith(topo.rstrip("/") + "/")):
+    raiz = _raiz_logica(cwd, topo)
+    if not (textual == raiz or textual.startswith(raiz.rstrip("/") + "/")):
         return False  # caminho já é de fora textualmente: não é travessia de symlink
+    topo_real = os.path.realpath(topo)
     pai_real = os.path.realpath(os.path.dirname(textual))
     return not (pai_real == topo_real or pai_real.startswith(topo_real.rstrip("/") + "/"))
 

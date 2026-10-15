@@ -116,7 +116,9 @@ run_gate() {
     fi
     local ini fim out rc dur
     ini=$(date +%s)
-    if ! out=$(mktemp "${TMPDIR:-/tmp}/sovereign-pre-push.${REPO_NAME}.${nome}.XXXXXX.log"); then
+    # Template termina em X (sem sufixo .log): o mktemp do macOS exige os
+    # X no fim; no GNU tanto faz. O conteúdo continua sendo o log do gate.
+    if ! out=$(mktemp "${TMPDIR:-/tmp}/sovereign-pre-push.${REPO_NAME}.${nome}.XXXXXX"); then
         echo -e "${RED}❌ ${nome}: não foi possível criar o log diagnóstico seguro${NC}"
         FAILED+=("$nome")
         return
