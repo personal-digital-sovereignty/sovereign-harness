@@ -34,6 +34,7 @@ python3 scripts/verificar_refs.py --docs <docs-do-projeto> --raiz .
 ## Guarda dos índices
 
 - `ADR-INDEX.md`: próximo número livre conferido antes de criar (reservas em branches abertas contam).
+- `python3 scripts/verificar_adr.py --adr-dir <docs>/adr`: ID duplicado reprova (GAP-20261015-035 do projeto de origem: duas ADR-001). Rode junto do `verificar_refs.py` antes do commit.
 - Concluído sai do PENDING e entra no CONCLUSION **no mesmo commit** — um sem o outro é registro pela metade.
 
 ## Quarentena, nunca apagão
