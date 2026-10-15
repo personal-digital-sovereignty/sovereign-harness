@@ -13,7 +13,8 @@ Evidência: `templates/git/test_merge_gate_base.sh` (T1–T5, repos git reais
 descartáveis, `gh` e `git ls-remote` dublês via PATH, sem rede) — 5/5 verde no
 gate novo; no gate anterior o T4 (rival na janela) passa cego. Instalador do
 perfil legado leva o teste para `.agents/`; CI com `bash -n` nos hooks
-portáteis e etapa do vínculo.
+portáteis e etapa do vínculo. Publicado no commit `23f1b81` e preparado para a
+release 0.3.1.
 
 ## 2026-10-15 — Contrato portátil completo preparado para 0.3.0
 
