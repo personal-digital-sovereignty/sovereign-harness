@@ -164,6 +164,7 @@ if [ $COM_GIT -eq 1 ]; then
     instala "$KIT/templates/git/pre-push" ".githooks/pre-push" 755
     instala "$KIT/templates/git/pre-commit" ".githooks/pre-commit" 755
     instala "$KIT/templates/git/merge_gate.sh" "scripts/merge_gate.sh" 755
+    instala "$KIT/templates/git/test_merge_gate_base.sh" ".agents/test_merge_gate_base.sh" 755
     instala "$KIT/templates/git/quadro.sh" ".agents/quadro.sh" 755
     instala "$KIT/templates/git/test_quadro.sh" ".agents/test_quadro.sh" 755
   fi
