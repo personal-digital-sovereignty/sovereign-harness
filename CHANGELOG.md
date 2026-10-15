@@ -2,6 +2,8 @@
 
 ## [Não lançado]
 
+## [0.3.1] — 2026-10-15 — correção do vínculo de merge
+
 ### Added
 - `merge_gate.sh` (perfil legado): gate `base` incondicional — re-lê head/base após os gates, re-lê `origin/main` no último instante antes do merge e confere pós-merge que o primeiro-pai da main nova é a base validada (squash/merge; `--rebase` avisa e pula). Teste hermético `test_merge_gate_base.sh` (T1–T5, `gh`/`ls-remote` dublês, repos reais; T4 cego no gate anterior).
 - Instalador do perfil legado leva `test_merge_gate_base.sh` para `.agents/`; CI com `bash -n` nos hooks portáteis e etapa do vínculo merge-base.
