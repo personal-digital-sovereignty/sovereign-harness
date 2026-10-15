@@ -28,6 +28,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      # Toolchains reais por SO: os testes multi-stack usam cargo/npm/ruff/
+      # pytest de verdade (fail-loud se ausentes — pular esconderia regressão).
+      - name: Toolchains (Python + Rust)
+        run: |
+          python3 -m pip install --quiet ruff pytest
+          python3 -m ruff --version && python3 -m pytest --version
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable 2026-10-09
+        with:
+          components: clippy, rustfmt
       - name: Cópias dos plugins idênticas à fonte
         run: python3 scripts/sincronizar.py --verificar
       - name: Testes (guard em repositórios reais, instalador, integridade)

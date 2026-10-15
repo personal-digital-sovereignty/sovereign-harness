@@ -82,6 +82,11 @@ falsos positivos/negativos: não é sandbox nem fronteira de segurança.
 
 ## Desenvolver o kit
 
+Ferramental local para a suíte completa (fail-loud se ausente): Python ≥ 3.11
+(+ `ruff`, `pytest`), toolchain Rust (`cargo` + `clippy` + `rustfmt`), Node ≥ 22,
+`jq`, `gh` (dublado nos testes), `shellcheck` e `actionlint` (só CI ubuntu).
+O CI instala Python/Rust; `npm` já vem nos runners.
+
 ```bash
 python3 scripts/sincronizar.py              # copia core/skills/commands para os plugins
 python3 -m unittest discover -s core/tests  # guard + integridade do kit
