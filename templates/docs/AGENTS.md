@@ -44,7 +44,7 @@ seus próprios hooks e histórico; o meta-repo não executa testes deles implici
 1. **Branch por trabalho** conforme política do projeto; configurar ramos protegidos no guard.
 2. **Cadência**: alterou, commitou — commits atômicos, mensagem com o quê, o porquê e o objetivo. Mudança indivisível em vários arquivos vai num commit só.
 3. **Autoria** segue a identidade Git configurada e a política de contribuição. Não alterar identidade global.
-4. **Gates locais**: `git config core.hooksPath .githooks` em cada clone. Gate reprovou: corrija o código ou o gate (skill `gate-reprovou`). Exceção consciente: `HARNESS_SKIP=<gate>`, registrada no PENDING no ato.
+4. **Gates locais**: configurar comandos reais em `.harness.toml` antes de ativar `git config core.hooksPath .githooks` em cada clone. Gate reprovou: corrija o código ou o gate (skill `gate-reprovou`). O runner portátil não oferece bypass por variável; escapes do guard e do perfil legado são mecanismos distintos e não certificam validação.
 5. **Merge** pelo mecanismo aprovado pelo projeto, com validação do resultado integrado. Adaptador GitHub só se aplica quando essa for a forge; repositório local não exige PR remoto. Não desativar os checks requeridos.
 6. **Release**: `<processo>`. Versão semântica conferida nos manifestos antes de qualquer push de versão.
 
@@ -58,12 +58,12 @@ seus próprios hooks e histórico; o meta-repo não executa testes deles implici
 
 ## Coexistência multi-agente
 
-1. Antes de tarefa não trivial: `git status`/`git diff` nos repositórios alvo e leitura do quadro.
+1. Antes de tarefa não trivial: `git status`/`git diff` nos repositórios alvo e leitura do quadro, quando adotado pelo projeto.
 2. Nunca `git add -A`/`.`; confira `git diff --cached --stat` antes do commit.
 3. Worktree deriva da referência atualizada escolhida pelo projeto; conferir remote e branch. Sem remote, a referência local é a fonte.
 4. `rm`/`mv`/`npm install` em worktree atravessam symlinks: `readlink -f` antes (skill `estado-compartilhado-multi-agente`).
 5. Limpeza de branches segue a política e autorização do projeto, com prova de integração e preservação de trabalho exclusivo.
-6. Ao terminar: quadro atualizado e handover.
+6. Ao terminar: quadro atualizado, se adotado, e handover.
 
 ## Skills do projeto
 

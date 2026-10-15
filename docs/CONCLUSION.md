@@ -11,6 +11,13 @@ num caminho com espaços, aspas e substituições de shell sem executar o conte�
 do nome. Os 13 testes do instalador passaram. Verificador documental distingue
 exemplos em code spans de links reais; oito testes de migração/links passaram.
 
+## 2026-10-14 — Método separado de convenções do projeto de origem
+
+Documentação, fechamento e coordenação por quadro agora declaram quando dependem
+de configuração do projeto. O kit não presume meta-repositório, GitHub, PR,
+quadro canônico ou mecanismo de merge. Cópias de plugins foram sincronizadas;
+67 testes, shellcheck e o teste hermético do quadro passaram em Linux.
+
 ## 2026-10-14 — Gates portáveis e topologia explícita
 
 Instalação padrão deixa de presumir GitHub, Rust/Node, origin/main e quadro

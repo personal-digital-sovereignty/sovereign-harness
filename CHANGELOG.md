@@ -16,6 +16,7 @@
 - AGENTS separa política do projeto de método reutilizável; a validação executa somente gates declarados pelo projeto.
 - Instalação padrão usa hooks portáveis; fluxo GitHub/Rust/Node e quadro compartilhado tornam-se perfil opt-in. Push recusa contrato não configurado, checkout rastreado sujo e refs diferentes do HEAD validado.
 - Instalação usa docs/PENDING.md, docs/ROADMAP.md e docs/CONCLUSION.md; AGENTS distingue política do projeto de método reutilizável.
+- README, comandos e skill de quadro distinguem mecanismo opcional de requisito universal; o roadmap raiz aponta para a fonte canônica em docs.
 
 ### Fixed
 - Consulta de checks do adaptador GitHub recusa erros e ausência de evidência verde.
