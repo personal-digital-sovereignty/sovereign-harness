@@ -54,6 +54,12 @@ class Kit(unittest.TestCase):
                 self.assertEqual(doc, esperado,
                                  f"manifesto em {doc}, guard em {esperado} — bump incompleto?")
 
+    def test_doc_governance_cobre_o_ciclo(self):
+        texto = (KIT / "skills" / "doc-governance" / "SKILL.md").read_text("utf-8")
+        for marcador in ("epics", "gaps", "insights", "ADR", "verificar_refs",
+                         "PENDING", "CONCLUSION", "ADR-INDEX", "_legacy"):
+            self.assertIn(marcador, texto, f"skill doc-governance não fala de {marcador}")
+
     def test_comandos_tem_descricao(self):
         for c in sorted((KIT / "commands").glob("*.md")):
             with self.subTest(comando=c.name):
