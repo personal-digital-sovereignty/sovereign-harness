@@ -1,6 +1,6 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
+## [0.2.0] — 2026-10-15 — fase 1 agnóstica
 
 ### Added
 - `scripts/verificar_refs.py`: confere que todo alvo local `.md` (link ou code span) existe; ignora URL externa e placeholder `<...>`; fail-loud com `arquivo:linha`. 6 testes em `core/tests/test_verificar_refs.py` (inclui prova negativa).
