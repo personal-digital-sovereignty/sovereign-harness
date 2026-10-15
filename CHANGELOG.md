@@ -4,8 +4,13 @@
 
 ### Added
 - Pre-push legado multi-stack: Rust/Node deixam de ser `elif` excludente; Python entra (pytest + ruff nos arquivos enviados). 4 testes herméticos com toolchains reais.
-- CI matriz ubuntu+macos (a bateria inteira roda nos dois SO por PR).
+- CI matriz ubuntu+macos (a bateria inteira roda nos dois SO por PR; toolchains reais instaladas).
 - `docs/examples/`: UC1–UC6 + portabilidade macOS (achados sp-assets/E66) + matriz de certificação; README raiz referencia.
+
+### Fixed
+- `rm-symlink` liberava travessia no macOS (falso negativo): topo resolvido do git vs cwd lógico nunca casavam sob `/private` — raiz lógica via `.git`, provado com TMPDIR symlinkado.
+- `mktemp` do pre-push com sufixo após os X falha no BSD; template termina em X.
+- `documentation.py`: caminho resolvido comparado com raiz crua quebrava sob tmpdir symlinkado (matriz macos).
 
 ## [0.4.0] — 2026-10-15 — validador de índice/identidade de ADR
 
