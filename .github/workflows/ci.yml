@@ -17,11 +17,27 @@ concurrency:
 jobs:
   testes:
     name: Guard, instalador e sincronia dos plugins
-    runs-on: ubuntu-latest
+    # Sandbox real por SO: o bash do macOS é 3.2 e o readlink/stat/GNU não
+    # existem lá — portabilidade se prova executando, não inspecionando.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      # Toolchains reais por SO: os testes multi-stack usam cargo/npm/ruff/
+      # pytest de verdade (fail-loud se ausentes — pular esconderia regressão).
+      # --break-system-packages: runner descartável, sem venv para 2 pacotes.
+      - name: Toolchains (Python + Rust)
+        run: |
+          python3 -m pip install --quiet --break-system-packages ruff pytest
+          python3 -m ruff --version && python3 -m pytest --version
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable 2026-10-09
+        with:
+          components: clippy, rustfmt
       - name: Cópias dos plugins idênticas à fonte
         run: python3 scripts/sincronizar.py --verificar
       - name: Testes (guard em repositórios reais, instalador, integridade)
@@ -31,7 +47,8 @@ jobs:
           for f in install.sh templates/git/pre-push templates/git/pre-commit templates/git/pre-push-portable templates/git/pre-commit-portable templates/git/merge_gate.sh templates/git/test_merge_gate_base.sh templates/git/quadro.sh templates/git/test_quadro.sh; do
             bash -n "$f"
           done
-          shellcheck -S warning install.sh
+          # Análise estática independe de SO; o binário só existe no ubuntu.
+          if command -v shellcheck >/dev/null; then shellcheck -S warning install.sh; fi
       - name: Teste hermético do quadro
         run: bash templates/git/test_quadro.sh templates/git/quadro.sh
       - name: Teste hermético do vínculo merge-base

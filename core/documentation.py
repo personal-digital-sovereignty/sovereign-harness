@@ -38,7 +38,10 @@ def local_path(root: Path, name: str) -> Path:
             break
         if part.is_symlink():
             raise ValueError(f"symlink não permitido na migração: {part}")
-    if not full.resolve().is_relative_to(root):
+    # Compara resolvido com resolvido: no macOS o tmpdir vive sob /private
+    # via /tmp (ou /var), então full.resolve() nunca é relativo a root cru —
+    # medido na matriz macos do CI (todos os testes de documentation).
+    if not full.resolve().is_relative_to(root.resolve()):
         raise ValueError(f"caminho fora da raiz: {name}")
     return full
 

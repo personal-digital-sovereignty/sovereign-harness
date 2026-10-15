@@ -67,8 +67,9 @@ git clone https://github.com/personal-digital-sovereignty/sovereign-harness
 
 Opções: `--agentes claude,codex,opencode,antigravity`, `--perfil <toml>`, `--git-profile portable|github-rust-node`, `--sem-skills`, `--skills-existentes <dir>`, `--sem-git`, `--sem-docs`, `--docs-dir <dir>` (padrão `docs`), `--project-name <nome>`, `--raiz-canonica <dir>`. Depois, no projeto alvo: preencher `AGENTS.md` e `.harness.toml`, executar `python3 .harness/validation.py check`, ativar `git config core.hooksPath .githooks`, instalar os plugins indicados no relatório e rodar os canários.
 
-Python ≥ 3.11, Git e Bash são requisitos do instalador/hooks. A validação desta
-mudança foi em Linux; Windows nativo e macOS precisam de validação própria.
+Python ≥ 3.11, Git e Bash são requisitos do instalador/hooks. A bateria roda
+em Linux e macOS por PR (matriz no CI); Windows nativo precisa de validação
+própria. Casos de uso reais por stack em [docs/examples/](docs/examples/README.md).
 Confira o [índice documental](docs/README.md). O guard é heurístico e pode ter
 falsos positivos/negativos: não é sandbox nem fronteira de segurança.
 
@@ -80,6 +81,11 @@ falsos positivos/negativos: não é sandbox nem fronteira de segurança.
 | Antigravity | sem bloqueio de ação: só instrução; o bloqueio real fica nos gates de git |
 
 ## Desenvolver o kit
+
+Ferramental local para a suíte completa (fail-loud se ausente): Python ≥ 3.11
+(+ `ruff`, `pytest`), toolchain Rust (`cargo` + `clippy` + `rustfmt`), Node ≥ 22,
+`jq`, `gh` (dublado nos testes), `shellcheck` e `actionlint` (só CI ubuntu).
+O CI instala Python/Rust; `npm` já vem nos runners.
 
 ```bash
 python3 scripts/sincronizar.py              # copia core/skills/commands para os plugins
