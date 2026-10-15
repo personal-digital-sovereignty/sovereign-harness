@@ -151,6 +151,10 @@ link() {
 instala "$KIT/core/harness_guard.py" ".harness/harness_guard.py" 755
 instala "$KIT/core/documentation.py" ".harness/documentation.py" 755
 instala "$KIT/core/validation.py" ".harness/validation.py" 755
+# Verificadores instalados para uso do projeto (a skill doc-governance os
+# referencia por este caminho; o gate abaixo os executa já instalados).
+instala "$KIT/scripts/verificar_refs.py" ".harness/verificar_refs.py" 755
+instala "$KIT/scripts/verificar_adr.py" ".harness/verificar_adr.py" 755
 instala "$PERFIL" ".harness.toml"
 
 # ---------------------------------------------------------------- git
@@ -246,15 +250,22 @@ if tem antigravity; then
 fi
 
 # ---------------------------------------------------------------- refs dos docs
-# O instalador garante o que instalou: os docs recém-escritos têm de passar no
-# verificador genérico. Saída é aviso (não muda o exit): projeto real ganha
-# refs próprias depois, e a disciplina contínua vive na skill doc-governance.
-REFS_MSG=""
+# O instalador garante o que instalou: os docs recém-escritos têm de passar nos
+# verificadores. Roda as CÓPIAS INSTALADAS (.harness/) — prova que o entregue
+# funciona no projeto, não só no kit. Saída é aviso (não muda o exit): projeto
+# real ganha refs próprias depois, e a disciplina contínua vive na skill
+# doc-governance.
+REFS_MSG=""; ADR_MSG=""
 if [ $COM_DOCS -eq 1 ] && [ $VERIFICAR -eq 0 ]; then
-    if REFS_OUT=$(python3 "$KIT/scripts/verificar_refs.py" --docs "$ALVO/$DOCS_DIR" --raiz "$ALVO" 2>&1); then
+    if REFS_OUT=$(python3 "$ALVO/.harness/verificar_refs.py" --docs "$ALVO/$DOCS_DIR" --raiz "$ALVO" 2>&1); then
         REFS_MSG="refs em $DOCS_DIR: em dia"
     else
         REFS_MSG="refs em $DOCS_DIR: QUEBRADAS (instalação fresca deveria ser verde — reporte ao kit):\n$REFS_OUT"
+    fi
+    if ADR_OUT=$(python3 "$ALVO/.harness/verificar_adr.py" --adr-dir "$ALVO/$DOCS_DIR/adr" 2>&1); then
+        ADR_MSG="adr em $DOCS_DIR: em dia"
+    else
+        ADR_MSG="adr em $DOCS_DIR: QUEBRADO (instalação fresca deveria ser verde — reporte ao kit):\n$ADR_OUT"
     fi
 fi
 
@@ -264,6 +275,7 @@ echo "━━━ harness Sovereign → $ALVO $([ $VERIFICAR -eq 1 ] && echo '(--v
 echo "criados:    ${#CRIADOS[@]}"; printf '   + %s\n' "${CRIADOS[@]+"${CRIADOS[@]}"}"
 echo "já iguais:  ${#IGUAIS[@]}"
 [ -n "$REFS_MSG" ] && printf '%b\n' "$REFS_MSG"
+[ -n "$ADR_MSG" ] && printf '%b\n' "$ADR_MSG"
 if [ ${#CONFLITOS[@]} -gt 0 ]; then
     echo "CONFLITOS:  ${#CONFLITOS[@]} (não sobrescritos — compare e mescle à mão)"
     printf '   ! %s\n' "${CONFLITOS[@]}"
