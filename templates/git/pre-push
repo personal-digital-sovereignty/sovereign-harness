@@ -313,8 +313,11 @@ gate_semgrep() {
 run_gate semgrep gate_semgrep
 
 # =============================================================================
-# Gates 4-6 — específicos por stack. O mesmo arquivo serve a vários repositórios
-# (era assim com o hook de gitleaks); o que muda é a stack detectada.
+# Gates 4-6 — específicos por stack, com detecção INDEPENDENTE por marcadores.
+# Monorepo com Rust + Node + Python roda os gates de cada stack presente, cada
+# um sobre os arquivos que o push toca (mesma regra anti-dívida-terceira em
+# todos: só o enviado é checado; suíte de teste roda inteira, como no Rust/Node).
+# Sem marcador de stack, só valem os gates 1-3 universais.
 # =============================================================================
 
 if [ -f "Cargo.toml" ]; then
@@ -372,11 +375,9 @@ if [ -f "Cargo.toml" ]; then
         rustfmt --edition 2021 --check --config skip_children=true "${rs[@]}"
     }
     run_gate lint gate_lint
-    # Nota: `ruff` e `pytest` sobre python_workers/ NÃO estão neste hook. Rodam
-    # na esteira remota (gates próprios) e ficaram de fora aqui de propósito,
-    # para não ampliar escopo sem medição — registrado no README.
+fi
 
-elif [ -f "package.json" ]; then
+if [ -f "package.json" ]; then
     # ---------- Node / SvelteKit (sp-ui-*) ----------
     # `npm run check` (svelte-check), NÃO `npx tsc --noEmit`: o tsc cru não
     # conhece as runas do Svelte 5 e acusa `Cannot find name '$state'` em
@@ -421,6 +422,30 @@ elif [ -f "package.json" ]; then
     else
         echo -e "${YELLOW}⏭  lint: repositório sem prettier instalado (n/a)${NC}"
     fi
+fi
+
+if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "requirements.txt" ]; then
+    # ---------- Python ----------
+    # Sem gate de tipos universal (mypy/pylance só se o projeto os configura —
+    # declare no perfil portable); aqui: suíte + lint sobre o que o push toca.
+    gate_test() {
+        precisa_de pytest "pipx install pytest (ou pip install pytest)" || return 127
+        python3 -m pytest -q
+    }
+    run_gate test gate_test
+
+    # Ruff direto nos .py enviados (mesmo motivo do rustfmt/prettier: dívida
+    # pré-existente não pode virar bloqueio retroativo de todo push).
+    gate_lint() {
+        precisa_de ruff "pipx install ruff (ou pip install ruff)" || return 127
+        local py=()
+        while IFS= read -r f; do
+            [ -n "$f" ] && [ -f "$f" ] && case "$f" in *.py) py+=("$f") ;; esac
+        done <<< "$CHANGED_FILES"
+        [ ${#py[@]} -eq 0 ] && { echo "nenhum .py no push"; return 0; }
+        ruff check "${py[@]}" && ruff format --check "${py[@]}"
+    }
+    run_gate lint gate_lint
 fi
 
 # =============================================================================
