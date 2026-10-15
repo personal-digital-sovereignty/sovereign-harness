@@ -1,5 +1,20 @@
 # Conclusões — Sovereign Harness
 
+## 2026-10-15 — P1: merge vinculado à base validada no perfil legado
+
+O `merge_gate.sh` ganha gate `base` incondicional (não herda o skip do `remote`):
+re-leitura de head/base após os gates, re-leitura de `origin/main` no último
+instante antes do `gh pr merge`, e conferência pós-merge de que o primeiro-pai
+da main nova é a base validada. Sem merge queue no servidor a janela não se
+fecha pelo cliente: estreita-se a segundos e detecta-se alto, com o par
+esperado/medido e ordem de registrar no PENDING.
+
+Evidência: `templates/git/test_merge_gate_base.sh` (T1–T5, repos git reais
+descartáveis, `gh` e `git ls-remote` dublês via PATH, sem rede) — 5/5 verde no
+gate novo; no gate anterior o T4 (rival na janela) passa cego. Instalador do
+perfil legado leva o teste para `.agents/`; CI com `bash -n` nos hooks
+portáteis e etapa do vínculo.
+
 ## 2026-10-15 — Contrato portátil completo preparado para 0.3.0
 
 O instalador passa a criar `docs/` por padrão, com PENDING, ROADMAP, CONCLUSION,
