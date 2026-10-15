@@ -1,5 +1,12 @@
 # Changelog — Sovereign Harness
 
+## [Não lançado]
+
+### Added
+- Pre-push legado multi-stack: Rust/Node deixam de ser `elif` excludente; Python entra (pytest + ruff nos arquivos enviados). 4 testes herméticos com toolchains reais.
+- CI matriz ubuntu+macos (a bateria inteira roda nos dois SO por PR).
+- `docs/examples/`: UC1–UC6 + portabilidade macOS (achados sp-assets/E66) + matriz de certificação; README raiz referencia.
+
 ## [0.4.0] — 2026-10-15 — validador de índice/identidade de ADR
 
 ### Added
