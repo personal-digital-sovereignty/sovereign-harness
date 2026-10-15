@@ -53,7 +53,7 @@ contexto; não mede taxa de falso positivo em outros projetos.
 ## Direção recomendada
 
 1. Contrato documental em `docs/`, com papéis distintos, vínculos e validação;
-   `AGENTS.md` curto como entrada para políticas do projeto.
+   [`AGENTS.md`](../../templates/docs/AGENTS.md) curto como entrada para políticas do projeto.
 2. Separar núcleo, adaptadores de agente, adaptadores de forge, perfis de projeto
    e comandos de validação. Perfil explícito para repo único, monorepo ou
    metarrepositório; inventário de membros, sem descobrir escopo por prefixo.
