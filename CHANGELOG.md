@@ -1,7 +1,5 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
-
 ## [0.3.1] — 2026-10-15 — correção do vínculo de merge
 
 ### Added
