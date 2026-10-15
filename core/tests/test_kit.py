@@ -36,6 +36,24 @@ class Kit(unittest.TestCase):
                 self.assertRegex(m.group(1), r"^[a-z0-9]+(-[a-z0-9]+)*$")
                 self.assertLessEqual(len(m.group(2)), 1024)
 
+    def test_versoes_dos_manifestos_iguais_a_do_guard(self):
+        m = re.search(r'^VERSAO = "([^"]+)"$', (KIT / "core" / "harness_guard.py").read_text("utf-8"), re.M)
+        self.assertIsNotNone(m, "VERSAO ausente no guard")
+        esperado = m.group(1)
+        alvos = {
+            KIT / ".claude-plugin/marketplace.json": ("metadata", "version"),
+            KIT / "plugins/claude-code/sovereign-harness-guard/.claude-plugin/plugin.json": ("version",),
+            KIT / "plugins/claude-code/sovereign-harness-metodo/.claude-plugin/plugin.json": ("version",),
+            KIT / "plugins/codex/sovereign-harness/.codex-plugin/plugin.json": ("version",),
+        }
+        for p, caminho in alvos.items():
+            with self.subTest(manifesto=str(p.relative_to(KIT))):
+                doc = json.loads(p.read_text("utf-8"))
+                for chave in caminho:
+                    doc = doc[chave]
+                self.assertEqual(doc, esperado,
+                                 f"manifesto em {doc}, guard em {esperado} — bump incompleto?")
+
     def test_comandos_tem_descricao(self):
         for c in sorted((KIT / "commands").glob("*.md")):
             with self.subTest(comando=c.name):
