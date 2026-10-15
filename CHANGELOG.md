@@ -9,6 +9,7 @@
 
 ### Added
 - Pre-push legado multi-stack: Rust/Node deixam de ser `elif` excludente; Python entra (pytest + ruff nos arquivos enviados). 4 testes herméticos com toolchains reais.
+- Instalador leva `verificar_refs.py` e `verificar_adr.py` para `.harness/` e executa as cópias instaladas no gate pós-instalação (skill e comando `doc` referenciam o novo caminho).
 - CI matriz ubuntu+macos (a bateria inteira roda nos dois SO por PR; toolchains reais instaladas).
 - `docs/examples/`: UC1–UC6 + portabilidade macOS (achados sp-assets/E66) + matriz de certificação; README raiz referencia.
 
