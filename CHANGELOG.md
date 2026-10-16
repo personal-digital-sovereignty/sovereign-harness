@@ -4,12 +4,12 @@
 
 ### Added
 - `scripts/canario_claude.py`: canário real do guard no Claude Code headless — self-checks sem login (CI) + `--live` com veredito por estado do disco (bloquear/libera); 5 testes. Live pendente de `claude login` do dono (OAuth expirado aqui).
+- Instalador leva `verificar_refs.py` e `verificar_adr.py` para `.harness/` e executa as cópias instaladas no gate pós-instalação (skill e comando `doc` referenciam o novo caminho).
 
 ## [0.5.0] — 2026-10-15 — multi-stack, matriz macOS e exemplos
 
 ### Added
 - Pre-push legado multi-stack: Rust/Node deixam de ser `elif` excludente; Python entra (pytest + ruff nos arquivos enviados). 4 testes herméticos com toolchains reais.
-- Instalador leva `verificar_refs.py` e `verificar_adr.py` para `.harness/` e executa as cópias instaladas no gate pós-instalação (skill e comando `doc` referenciam o novo caminho).
 - CI matriz ubuntu+macos (a bateria inteira roda nos dois SO por PR; toolchains reais instaladas).
 - `docs/examples/`: UC1–UC6 + portabilidade macOS (achados sp-assets/E66) + matriz de certificação; README raiz referencia.
 
