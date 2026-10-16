@@ -153,6 +153,11 @@ class Instalador(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertTrue((self.alvo / "docs" / "PENDING.md").is_file())
         self.assertIn("refs em docs: em dia", r.stdout)
+        self.assertIn("adr em docs: em dia", r.stdout)
+        for v in ("verificar_refs.py", "verificar_adr.py"):
+            p = self.alvo / ".harness" / v
+            self.assertTrue(p.is_file(), v)
+            self.assertTrue(os.access(p, os.X_OK), v)
 
     def test_docs_dir_invalido_falha_alto(self):
         for ruim in ("/absoluto", "../fora", ""):
