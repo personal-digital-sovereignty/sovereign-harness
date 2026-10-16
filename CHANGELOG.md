@@ -1,6 +1,6 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
+## [0.5.0] — 2026-10-15 — multi-stack, matriz macOS e exemplos
 
 ### Added
 - Pre-push legado multi-stack: Rust/Node deixam de ser `elif` excludente; Python entra (pytest + ruff nos arquivos enviados). 4 testes herméticos com toolchains reais.
