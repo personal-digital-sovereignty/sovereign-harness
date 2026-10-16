@@ -1,7 +1,7 @@
 {
   "name": "sovereign-harness",
   "owner": { "name": "Sovereign Pair" },
-  "metadata": { "description": "Harness e método Sovereign de engenharia de software assistida por IA", "version": "0.5.0" },
+  "metadata": { "description": "Harness e método Sovereign de engenharia de software assistida por IA", "version": "0.6.0" },
   "plugins": [
     {
       "name": "sovereign-harness-guard",

@@ -1,6 +1,6 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
+## [0.6.0] — 2026-10-15 — canário Claude + verifiers instalados
 
 ### Added
 - `scripts/canario_claude.py`: canário real do guard no Claude Code headless — self-checks sem login (CI) + `--live` com veredito por estado do disco (bloquear/libera); 5 testes. Live pendente de `claude login` do dono (OAuth expirado aqui).
