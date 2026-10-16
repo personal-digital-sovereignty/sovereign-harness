@@ -75,7 +75,7 @@ falsos positivos/negativos: não é sandbox nem fronteira de segurança.
 
 | Agente | Estado da integração |
 |---|---|
-| Claude Code | manifestos validados (`claude plugin validate`) |
+| Claude Code | manifestos validados (`claude plugin validate`); canário real em `scripts/canario_claude.py` (live exige `claude login`) |
 | Codex | canário real verde; hooks de projeto exigem revisão de confiança no Codex |
 | OpenCode | canário real verde nos dois sentidos |
 | Antigravity | sem bloqueio de ação: só instrução; o bloqueio real fica nos gates de git |
