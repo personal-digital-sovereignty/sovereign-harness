@@ -25,7 +25,10 @@ quadro.sh ler                 # sempre a versão da branch principal, nunca a do
 quadro.sh agora               # timestamp UTC
 quadro.sh editar              # imprime o arquivo a editar — edite ESSE
 quadro.sh commit "docs(quadro): <o que mudou>"
+quadro.sh saude [--estrito]   # o que está fora da main e o que está parado
 ```
+
+O `ler` termina com o relatório de `saude` em stderr (o quadro em stdout fica intacto): branches do repositório de coordenação com conteúdo fora da principal — separando as que só faltam apagar das órfãs sem entrada ativa — e entradas de "Em andamento" sem data nova há mais de 3 dias. Não bloqueia; trate o que for seu.
 
 O `commit` usa `git commit <caminho>`, que leva só o quadro (o index costuma ter trabalho alheio staged). Com o diretório principal na branch de outra sessão, o helper commita por plumbing (`hash-object` + index temporário + `commit-tree` + `update-ref` com compare-and-swap), sem tocar no working tree dela, e recusa se a branch principal avançou desde a sua leitura.
 
@@ -33,7 +36,7 @@ O `commit` usa `git commit <caminho>`, que leva só o quadro (o index costuma te
 
 1. **Antes**: leia o quadro inteiro. Se outra sessão já declarou o repositório, a branch ou — o que mais importa — os **paths** que você ia editar, não duplique: escolha outro item ou combine em "Notas entre agentes". Depois acrescente sua entrada em "Em andamento".
 2. **Durante**: atualize ao mudar de repositório, criar branch ou crescer o escopo. Entrada parada com escopo desatualizado é pior que nenhuma: a vizinha decide com base nela.
-3. **Ao terminar**: mova para "Concluído recentemente" com PRs e o que ficou aberto, e limpe as branches mergeadas (com prova por dois métodos).
+3. **Ao terminar**: mova para "Concluído recentemente" com PRs e o que ficou aberto, e limpe as branches mergeadas (com prova por dois métodos). Entrega fechada vai para a branch principal no mesmo passo (skill `encerrar-documentacao`); a `saude` deve deixar de listar a sua branch.
 
 ## Formato da entrada
 

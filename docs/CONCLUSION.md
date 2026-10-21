@@ -1,5 +1,11 @@
 # Conclusões — Sovereign Harness
 
+## 2026-10-21 — Publicação documental: `saude` do quadro e passo "publique e prove"
+
+No projeto de origem, a documentação commitada em branch de agente do repositório de coordenação não chegava à branch principal. Foram medidas 11 branches com commits fora dela; uma ADR citada pelo código ficou 3 semanas só numa branch; 20 entradas do quadro ficaram paradas em "Em andamento". Sem remote nem PR nesse repositório, nada lembrava. Este kit é a fonte da skill e do helper, então a correção entra aqui primeiro e o consumidor adota cópia idêntica.
+
+Entregue: `quadro.sh saude` (também ao fim do `ler`, em stderr) e o passo 7 da skill `encerrar-documentacao`. As skills e os comandos foram sincronizados para os plugins por `scripts/sincronizar.py`. Evidência: S0–S5 herméticos em `templates/git/test_quadro.sh`, verdes com o helper novo; contra o helper anterior as asserções positivas reprovam (8 falhas). C1–C7 continuam verdes, 98 testes do core passam, a sincronia está em dia e o merge-base passa 5/5. Execução no repositório de origem: acusa as 7 branches com conteúdo pendente (2 órfãs), as 3 publicadas e não apagadas e as 20 entradas paradas, em cerca de 2 s. Não lançado.
+
 ## 2026-10-15 — P1: merge vinculado à base validada no perfil legado
 
 O `merge_gate.sh` ganha gate `base` incondicional (não herda o skip do `remote`):
