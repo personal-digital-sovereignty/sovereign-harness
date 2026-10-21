@@ -21,6 +21,21 @@
 #     .agents/quadro.sh agora            # timestamp UTC no formato do quadro
 #     .agents/quadro.sh commit "<msg>"   # commita o arquivo de trabalho em main
 #     .agents/quadro.sh caminho          # imprime o caminho canônico em disco
+#     .agents/quadro.sh saude [--estrito] # o que está fora da main e o que está parado
+#
+# `ler` imprime o quadro em stdout e, ao final, o relatório de `saude` em
+# stderr (para não quebrar quem faz `ler | grep`). QUADRO_SEM_SAUDE=1 desliga.
+# `saude` não bloqueia: sai 0 mesmo com alertas. Gate hostil ligado por padrão
+# acaba desligado na primeira semana e nunca reavaliado; aviso visível no ponto
+# de leitura não. `--estrito` sai 1 se houver alerta, para quem quiser usá-lo
+# como gate numa rodada de auditoria.
+#
+# Por que existe (medido no projeto de origem em 2026-10-21): documentação
+# commitada em branch de agente do repositório de coordenação não chegava à
+# `main` — 11 branches com commits fora dela, uma ADR citada pelo código ficou
+# 3 semanas só numa branch, e 20 entradas ficaram semanas em "Em andamento" sem
+# atividade. Sem remote nem PR nesse repositório, nada lembrava. Agora o
+# lembrete aparece no momento em que toda sessão lê o quadro.
 #
 # Terceira armadilha, medida em 2026-09-10: o arquivo em disco pertence à branch
 # que estiver em checkout no diretório principal. Se outra sessão trocou a branch
@@ -95,9 +110,139 @@ recusar_disco_editado() {
     fi
 }
 
+# Relatório de saúde. Duas perguntas, ambas sobre a `main`:
+#   1. Que branch do meta-repo tem commit fora da `main`? Separa o que é
+#      conteúdo pendente (patch sem equivalente na main) do que já foi publicado
+#      e só falta apagar; cruza com "Em andamento" para achar o órfão — conteúdo
+#      fora da main sem nenhuma entrada ativa que o reclame.
+#   2. Que entrada de "Em andamento" não recebe data nova há mais de N dias?
+# `git cherry` compara patches: conteúdo portado à mão para a main (caso real no
+# projeto de origem: um plano inteiro reescrito em outro commit) continua
+# aparecendo como pendente — por isso o texto manda conferir por conteúdo,
+# nunca apagar em lote.
+# QUADRO_HOJE (AAAA-MM-DD) e QUADRO_DIAS_PARADA (padrão 3) existem para o teste.
+saude() {
+    local estrito="${1:-}"
+    META_REPO="$META_REPO" QUADRO_ESTRITO="$estrito" python3 - <<'PYEOF'
+import datetime, os, re, subprocess, sys
+
+repo = os.environ["META_REPO"]
+estrito = os.environ.get("QUADRO_ESTRITO") == "--estrito"
+dias_parada = int(os.environ.get("QUADRO_DIAS_PARADA", "3"))
+hoje_txt = os.environ.get("QUADRO_HOJE") or datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+hoje = datetime.date.fromisoformat(hoje_txt)
+
+def git(*args):
+    r = subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+    return r.stdout if r.returncode == 0 else ""
+
+quadro = git("show", "main:.agents/agents_work.md")
+
+def secao(nome):
+    """Texto da seção '## ... <nome>' até o próximo '## '."""
+    linhas, dentro = [], False
+    for l in quadro.splitlines():
+        if l.startswith("## "):
+            dentro = nome in l
+            continue
+        if dentro:
+            linhas.append(l)
+    return "\n".join(linhas)
+
+def entradas(texto):
+    out, atual = [], None
+    for l in texto.splitlines():
+        if l.startswith("### "):
+            atual = [l[4:].strip(), []]
+            out.append(atual)
+        elif atual is not None:
+            atual[1].append(l)
+    return [(t, "\n".join(c)) for t, c in out]
+
+em_andamento = secao("Em andamento")
+alertas = 0
+linhas = []
+
+# --- 1. branches com commit fora da main -------------------------------------
+pendentes, publicadas = [], []
+for b in git("for-each-ref", "--format=%(refname:short)", "refs/heads/").split():
+    if b == "main":
+        continue
+    ahead = git("rev-list", "--count", f"main..{b}").strip()
+    if not ahead or int(ahead) == 0:
+        continue
+    sem_equiv = sum(1 for l in git("cherry", "main", b).splitlines() if l.startswith("+"))
+    data_txt = git("log", "-1", "--format=%cs", b).strip()
+    try:
+        idade = (hoje - datetime.date.fromisoformat(data_txt)).days
+    except ValueError:
+        idade = None
+    ativa = b in em_andamento
+    item = (b, int(ahead), sem_equiv, data_txt, idade, ativa)
+    (pendentes if sem_equiv else publicadas).append(item)
+
+if pendentes:
+    linhas.append("Branches do meta-repo com conteúdo fora da main (patch sem equivalente):")
+    for b, ahead, sem, data_txt, idade, ativa in sorted(pendentes, key=lambda x: x[3]):
+        idade_txt = f"{idade}d" if idade is not None else "?"
+        if not ativa:
+            alertas += 1
+            marca = "⚠ SEM entrada ativa no quadro"
+        elif idade is not None and idade > dias_parada:
+            alertas += 1
+            marca = f"⚠ entrada ativa, mas sem commit há mais de {dias_parada}d"
+        else:
+            marca = "em curso (entrada ativa)"
+        linhas.append(f"  {marca}: {b} — {sem}/{ahead} commit(s) sem equivalente, último {data_txt} ({idade_txt})")
+    linhas.append("  → entrega fechada vai para a main no mesmo passo; WIP fica na branch. Confira por")
+    linhas.append("    CONTEÚDO antes de apagar (git cherry não vê porta manual). Skill encerrar-documentacao.")
+if publicadas:
+    linhas.append("Branches já publicadas na main, mas não apagadas (só falta a limpeza com prova):")
+    for b, ahead, sem, data_txt, idade, ativa in sorted(publicadas, key=lambda x: x[3]):
+        linhas.append(f"  · {b} — último commit {data_txt}")
+
+# --- 2. entradas paradas em "Em andamento" ------------------------------------
+paradas = []
+for titulo, corpo in entradas(em_andamento):
+    datas = []
+    for d in re.findall(r"\b(20\d\d-\d\d-\d\d)\b", corpo):
+        try:
+            datas.append(datetime.date.fromisoformat(d))
+        except ValueError:
+            pass
+    if not datas:
+        paradas.append((titulo, None))
+        continue
+    ultima = max(datas)
+    if (hoje - ultima).days > dias_parada:
+        paradas.append((titulo, ultima))
+if paradas:
+    linhas.append(f"Entradas em \"Em andamento\" sem data nova há mais de {dias_parada} dias:")
+    for titulo, ultima in paradas:
+        alertas += 1
+        quando = f"última data {ultima} ({(hoje - ultima).days}d)" if ultima else "sem nenhuma data"
+        linhas.append(f"  ⚠ {titulo[:90]} — {quando}")
+    linhas.append("  → atualize, mova para Concluído ou para Interrompido (verificando antes, nunca apagando).")
+
+print(f"━━━ saúde do quadro (main {git('rev-parse', '--short', 'main').strip()}, hoje {hoje_txt}) ━━━")
+if linhas:
+    print("\n".join(linhas))
+else:
+    print("✅ nada fora da main, nenhuma entrada parada.")
+sys.exit(1 if (estrito and alertas) else 0)
+PYEOF
+}
+
 case "${1:-}" in
     caminho) echo "$QUADRO" ;;
-    ler)     git -C "$META_REPO" show main:.agents/agents_work.md ;;
+    ler)
+        git -C "$META_REPO" show main:.agents/agents_work.md
+        if [ -z "${QUADRO_SEM_SAUDE:-}" ]; then
+            echo >&2
+            saude >&2
+        fi
+        ;;
+    saude)   saude "${2:-}"; exit $? ;;
     editar)
         alvo=$(alvo_de_edicao)
         # O alvo pode conter edição não commitada — sua ou de outra sessão

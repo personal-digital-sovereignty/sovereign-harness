@@ -1,5 +1,14 @@
 # Changelog — Sovereign Harness
 
+## [Não lançado]
+
+### Added
+- `quadro.sh saude [--estrito]`: relatório do que está fora da branch principal no repositório de coordenação — branches com conteúdo pendente (patch sem equivalente, via `git cherry`), separando as que só faltam apagar e as órfãs sem entrada ativa no quadro — e das entradas de "Em andamento" sem data nova há mais de `QUADRO_DIAS_PARADA` (3) dias. Não bloqueia; `--estrito` sai 1. `quadro.sh ler` imprime o relatório em stderr ao final (stdout intacto; `QUADRO_SEM_SAUDE=1` desliga). Teste hermético S0–S5 em `templates/git/test_quadro.sh`, provado no negativo (contra o helper anterior as asserções positivas reprovam).
+
+### Changed
+- Skill `encerrar-documentacao`: passo 7, "publique e prove" — commit em branch não é entrega; a unidade encerrada entra na linha principal no mesmo passo e se prova com `git merge-base --is-ancestor`, conferindo a `saude` do quadro. Passo 5: documento já citado fora do repositório que muda de lugar ganha registro origem → destino, sem reescrever a referência histórica. Passo 6: inclui verificadores entre repositórios.
+- Skill `quadro-de-trabalho` e comando `/quadro`: documentam a `saude` e o fechamento pela branch principal.
+
 ## [0.6.0] — 2026-10-15 — canário Claude + verifiers instalados
 
 ### Added

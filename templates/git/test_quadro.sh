@@ -100,5 +100,52 @@ saida=$("$HELPER" editar 2>&1) && nok "C7: extraiu por cima de edição no disco
 grep -q "^edicao-minha-nao-commitada$" .agents/agents_work.md && ok "C7: edição no disco preservada" || nok "C7: edição no disco SUMIU"
 git checkout -q -- .agents/agents_work.md
 
+# ---- saude: o que está fora da main e o que está parado ------------------------
+# Data fixa: o teste não pode depender do relógio.
+export QUADRO_HOJE=2026-10-21 QUADRO_DIAS_PARADA=3
+git checkout -q main
+git branch -q -D outra-sessao   # branch dos cenários acima: não é objeto da saude
+
+# S0 — estado limpo: nada a acusar, e --estrito passa.
+saida=$("$HELPER" saude 2>&1); rc=$?
+echo "$saida" | grep -q "nada fora da main" && [ $rc -eq 0 ] && ok "S0: estado limpo reportado como limpo" || nok "S0: estado limpo acusou algo: $saida"
+"$HELPER" saude --estrito >/dev/null 2>&1 && ok "S0: --estrito passa no estado limpo" || nok "S0: --estrito reprovou o estado limpo"
+
+# S1 — o caso do E67: doc commitada numa branch, sem entrada ativa no quadro.
+git checkout -q -b claude/doc-orfa
+mkdir -p docs && echo "adr nunca publicada" > docs/ADR-999.md
+git add docs/ADR-999.md && git commit -qm "docs: adr so na branch"
+git checkout -q main
+saida=$("$HELPER" saude 2>&1); rc=$?
+echo "$saida" | grep -q "SEM entrada ativa no quadro: claude/doc-orfa" && ok "S1: branch órfã com doc fora da main acusada" || nok "S1: branch órfã NÃO acusada: $saida"
+[ $rc -eq 0 ] && ok "S1: sem --estrito não bloqueia" || nok "S1: bloqueou sem --estrito"
+"$HELPER" saude --estrito >/dev/null 2>&1 && nok "S1: --estrito deixou passar a órfã" || ok "S1: --estrito reprova a órfã"
+
+# S2 — a mesma branch com entrada ativa e commit recente: em curso, sem alerta.
+printf '\n### claude/doc-orfa — trabalho\n- **Última atualização**: 2026-10-20 10:00 (UTC)\n' >> .agents/agents_work.md
+git commit -qam "quadro: entrada ativa"
+saida=$("$HELPER" saude 2>&1)
+echo "$saida" | grep -q "em curso (entrada ativa): claude/doc-orfa" && ok "S2: branch com entrada ativa vista como em curso" || nok "S2: classificação errada: $saida"
+echo "$saida" | grep -q "SEM entrada ativa" && nok "S2: ainda acusou como órfã" || ok "S2: não acusou como órfã"
+
+# S3 — publicada: o conteúdo entra na main (cherry-pick). Passa a "só falta apagar".
+# (cherry-pick não tem -q; um preparo que falha em silêncio faria o S3 testar nada)
+git cherry-pick claude/doc-orfa >/dev/null 2>&1 || nok "S3: preparo — cherry-pick falhou"
+saida=$("$HELPER" saude 2>&1)
+echo "$saida" | grep -q "já publicadas na main" && echo "$saida" | grep -q "claude/doc-orfa" && ok "S3: branch publicada reconhecida (só falta apagar)" || nok "S3: publicada não reconhecida: $saida"
+git branch -q -D claude/doc-orfa
+
+# S4 — entrada parada: última data além do limite é acusada; a recente, não.
+printf '\n### claude/velha — parada\n- **Última atualização**: 2026-10-01 10:00 (UTC)\n' >> .agents/agents_work.md
+git commit -qam "quadro: entrada velha"
+saida=$("$HELPER" saude 2>&1)
+echo "$saida" | grep -q "⚠ claude/velha — parada — última data 2026-10-01 (20d)" && ok "S4: entrada parada acusada com a idade" || nok "S4: entrada parada não acusada: $saida"
+echo "$saida" | grep -q "⚠ claude/doc-orfa — trabalho" && nok "S4: acusou a entrada recente" || ok "S4: entrada recente não acusada"
+
+# S5 — `ler`: stdout é o quadro, intacto; a saúde vai para stderr e pode ser desligada.
+diff <("$HELPER" ler 2>/dev/null) <(git show main:.agents/agents_work.md) >/dev/null && ok "S5: stdout do ler é exatamente o quadro da main" || nok "S5: ler alterou o stdout"
+"$HELPER" ler 2>&1 >/dev/null | grep -q "saúde do quadro" && ok "S5: saúde sai em stderr" || nok "S5: saúde não apareceu em stderr"
+[ -z "$(QUADRO_SEM_SAUDE=1 "$HELPER" ler 2>&1 >/dev/null)" ] && ok "S5: QUADRO_SEM_SAUDE desliga" || nok "S5: QUADRO_SEM_SAUDE não desligou"
+
 echo
 if [ "$falhas" -eq 0 ]; then echo "TUDO OK"; else echo "$falhas falha(s)"; exit 1; fi
