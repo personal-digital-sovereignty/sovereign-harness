@@ -17,6 +17,9 @@
 #   2. commitar o quadro fora de `main`;
 #   3. commitar o quadro de carona com arquivos que não são do próprio `.agents/`.
 #
+# E, desde 2026-10-23, commit direto na `main` de qualquer outro arquivo (gate
+# `main`); o que chega à main por merge/update-ref passa pelo `reference-transaction`.
+#
 # Instalação (config local, não viaja em clone — e aqui o caminho é ABSOLUTO de
 # propósito: com caminho relativo o hook não rodaria justamente nos worktrees,
 # cujas branches podem não ter o diretório `.githooks/`):
@@ -55,18 +58,59 @@ printf '%s\n' "$staged" | sed 's/^/    · /'
 # Roda quando o staged toca .md (ou o proprio script); sem docs no commit,
 # passa direto. Assume CWD = raiz do repo (todos os fluxos usam git -C).
 # Excecao consciente, no padrao do arquivo: HARNESS_SKIP=docrefs
-if printf '%s\n' "$staged" | grep -qE '\.md$|check_doc_refs\.py'; then
-	if env | grep -q '^HARNESS_SKIP=.*docrefs'; then
+#
+# NOTA (2026-10-23): nada de `produtor | grep -q` neste arquivo. Com pipefail, o
+# grep -q sai no primeiro acerto, o produtor morre de SIGPIPE e o pipeline conta
+# como FALHA. Medido: `env | grep -q` errou 152/300; `printf grande | grep -q`,
+# 200/200. A exceção HARNESS_SKIP=docrefs era ignorada ao acaso. Use here-string
+# (`grep -q ... <<<"$var"`) ou `case` sobre a variável.
+# Os scripts auxiliares são resolvidos pelo diretório do próprio hook: com
+# core.hooksPath absoluto, o CWD de um worktree antigo pode não ter `.githooks/`.
+AQUI=$(cd "$(dirname "$0")" && pwd)
+if grep -qE '\.md$|check_doc_refs\.py' <<<"$staged"; then
+	if case ",${HARNESS_SKIP:-}," in *,docrefs,*|*,all,*) true ;; *) false ;; esac; then
 		echo 'docrefs: verificacao pulada (HARNESS_SKIP)'
 	elif ! command -v python3 >/dev/null 2>&1; then
 		echo 'docrefs: python3 ausente — sem verificacao, sem commit. Instale o python3.'
 		exit 1
-	elif [ -f .githooks/check_doc_refs.py ] && ! python3 .githooks/check_doc_refs.py; then
+	elif [ -f "$AQUI/check_doc_refs.py" ] && ! python3 "$AQUI/check_doc_refs.py"; then
 		echo 'docrefs: corrigir acima. Se a excecao for consciente: HARNESS_SKIP=docrefs git commit ...'
 		exit 1
 	fi
 fi
-printf '%s\n' "$staged" | grep -qxF "$QUADRO" || exit 0   # quadro fora do commit: nada a ver aqui
+
+# =========================================================================
+# Gate main — no repositório de coordenação, commit direto na `main` é só o do quadro
+# =========================================================================
+# Branch por agente vale também aqui: o trabalho vai numa branch e entra na main
+# por merge. Caso de origem (2026-10-23): sessões editavam no checkout principal
+# e commitariam direto na main — uma edição em lote não declarada de 3 skills
+# ficou a um `commit -a` de entrar. Passam: o quadro sozinho (o quadro.sh commita
+# só ele) e a conclusão de um merge (MERGE_HEAD). O que entra na main por
+# merge/update-ref/reset é validado pela guarda da ref (reference-transaction).
+# Excecao consciente: HARNESS_SKIP=main
+if [ "$(git branch --show-current 2>/dev/null)" = "main" ] && ! git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+	case ",${HARNESS_SKIP:-}," in
+		*,main,*|*,all,*) echo 'main: commit direto na main permitido (HARNESS_SKIP)' ;;
+		*)
+			fora=$(grep -vxF "$QUADRO" <<<"$staged" | grep -v '^$' || true)
+			if [ -n "$fora" ]; then
+				echo ""
+				echo -e "${RED}❌ COMMIT BLOQUEADO — commit direto na main do repositório de coordenação${NC}"
+				echo "Na main, só o quadro (${QUADRO}) se commita direto. Este commit leva:"
+				printf '%s\n' "$fora" | sed 's/^/    · /'
+				echo ""
+				echo -e "${BLUE}Faça o trabalho numa branch sua (worktree próprio) e mergeie na main:${NC}"
+				echo -e "${BLUE}    git worktree add -b <agente>/<slug> <caminho> main${NC}"
+				echo -e "${BLUE}Com o checkout principal sujo de outra sessão: skill estado-compartilhado-multi-agente §7.${NC}"
+				echo -e "${YELLOW}Se a exceção for consciente:  HARNESS_SKIP=main git commit ...${NC}"
+				echo ""
+				exit 1
+			fi
+			;;
+	esac
+fi
+grep -qxF "$QUADRO" <<<"$staged" || exit 0   # quadro fora do commit: nada a ver aqui
 
 case ",${HARNESS_SKIP:-}," in
     *,quadro,*|*,all,*)
@@ -91,6 +135,15 @@ bloqueia() {
     echo ""
     exit 1
 }
+
+# Conclusão de merge que só INCORPORA o quadro da main (2026-10-23): trazer a
+# main para uma branch com conflito em outro arquivo termina em `git commit`, que
+# roda este hook com o quadro da main staged. Não é edição do quadro: se o
+# conteúdo staged é idêntico ao da main, deixa passar sem exceção.
+if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 \
+   && [ "$(git rev-parse -q ":$QUADRO" 2>/dev/null)" = "$(git rev-parse -q "main:$QUADRO" 2>/dev/null)" ]; then
+    exit 0
+fi
 
 toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
 if [ "$toplevel" != "$CANONICO" ]; then
@@ -132,7 +185,7 @@ if [ -n "$removidos" ]; then
     adicionados=$(git diff --cached -- "$QUADRO" | grep '^+' | grep -v '^+++' | sed 's/^+//' || true)
     while IFS= read -r linha; do
         [ -z "$linha" ] && continue
-        printf '%s\n' "$adicionados" | grep -qxF "$linha" || perdidos="${perdidos}  · ${linha}\n"
+        grep -qxF -- "$linha" <<<"$adicionados" || perdidos="${perdidos}  · ${linha}\n"
     done <<EOF
 $removidos
 EOF
