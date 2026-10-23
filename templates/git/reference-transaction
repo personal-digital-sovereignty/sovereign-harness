@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Repositório de coordenação — reference-transaction: guarda da ref `main`
+# =============================================================================
+# O pre-commit só roda em `git commit`. A `main` do repositório de coordenação
+# (o que guarda o quadro e a documentação, sem remote) também anda por
+# `git merge` (fast-forward ou merge commit), por `git update-ref` (o quadro.sh
+# por plumbing, e a publicação com o checkout principal sujo da skill
+# estado-compartilhado-multi-agente §7) e por `git reset`. Nenhum desses passa
+# pelo pre-commit. Caso de origem (2026-10-23): cinco publicações seguidas
+# entraram na `main` por update-ref sem nenhum gate rodar sobre o resultado.
+#
+# Este hook roda em TODA transação de ref (git ≥ 2.28). Para qualquer ref que
+# não seja `refs/heads/main` ele sai em silêncio (medido: commit, merge e
+# update-ref na main chegam como `refs/heads/main`; commit com HEAD solto chega
+# só como `HEAD`). Para a main, no estado "prepared" (o único em que o exit code
+# conta), recusa:
+#   1. apagar a main;
+#   2. mover a main para um commit que não descende da atual (reset, rewrite,
+#      push --force local). O valor "old" do stdin vem zerado em atualização
+#      forçada, por isso a comparação é contra `git rev-parse refs/heads/main`;
+#   3. árvore nova que reprova os gates de documentação, rodados SÓ sobre o que
+#      mudou e SOBRE O COMMIT, não sobre o disco (update-ref não toca o disco):
+#      `check_skills.py --rev` (se o projeto o tiver em .githooks/, para
+#      SKILL.md alterado) e o verificador de links (`check_doc_refs.py --root`
+#      do projeto, senão `.harness/documentation.py check`) sobre um export da
+#      árvore nova, se algum .md mudou.
+#
+# Exceção consciente, no padrão do arquivo (aparece nomeada no terminal):
+#     HARNESS_SKIP=main-ref git ...       (HARNESS_SKIP=docrefs pula só os links)
+# =============================================================================
+set -uo pipefail
+
+[ "${1:-}" = "prepared" ] || exit 0
+
+novo=""
+while read -r _velho n ref; do
+    [ "$ref" = "refs/heads/main" ] && novo="$n"
+done
+[ -n "$novo" ] || exit 0
+
+case ",${HARNESS_SKIP:-}," in
+    *,main-ref,*|*,all,*)
+        echo "main-ref: guarda da main pulada (HARNESS_SKIP)" >&2
+        exit 0
+        ;;
+esac
+
+AQUI=$(cd "$(dirname "$0")" && pwd)
+RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
+
+bloqueia() {
+    {
+        echo ""
+        echo -e "${RED}❌ MAIN NÃO ATUALIZADA — guarda da ref${NC}"
+        printf '%b\n' "$1"
+        if [ -n "${mudou:-}" ] && [ -n "${atual:-}" ]; then
+            echo ""
+            echo "Atenção: num \`git merge\` recusado, o git JÁ escreveu o conteúdo novo na árvore"
+            echo "de trabalho (só a ref ficou parada). NÃO use \`reset --hard\` no checkout principal:"
+            echo "ele apaga também o trabalho não commitado de outras sessões. Restaure só estes:"
+            echo "    git restore --source=main --staged --worktree -- \\"
+            printf '%s\n' "$mudou" | head -40 | sed 's/^/        /'
+        fi
+        echo ""
+        echo -e "${YELLOW}Se a exceção for consciente:  HARNESS_SKIP=main-ref git ...${NC}"
+        echo ""
+    } >&2
+    exit 1
+}
+
+case "$novo" in
+    *[!0]*) ;;
+    *) bloqueia "Esta operação APAGARIA a branch \`main\`." ;;
+esac
+
+mudou=""
+atual=$(git rev-parse -q --verify refs/heads/main 2>/dev/null || true)
+[ -n "$atual" ] && [ "$atual" = "$novo" ] && exit 0
+if [ -n "$atual" ] && ! git merge-base --is-ancestor "$atual" "$novo" 2>/dev/null; then
+    bloqueia "A main iria de ${atual:0:7} para ${novo:0:7}, que NÃO descende dela.\nIsso reescreve história compartilhada: o que outras sessões já leram, ou já\nmergearam, some da main sem conflito. A main só avança.\nPara desfazer algo, faça um commit novo (git revert) numa branch e mergeie."
+fi
+
+if [ -n "$atual" ]; then
+    mudou=$(git diff --name-only "$atual" "$novo" 2>/dev/null)
+else
+    mudou=$(git ls-tree -r --name-only "$novo" 2>/dev/null)
+fi
+
+# Here-string, nunca `printf | grep -q`: com pipefail e dado grande o grep -q
+# fecha o pipe cedo e o pipeline "falha" (medido 200/200) — o gate seria pulado.
+if [ -f "$AQUI/check_skills.py" ] && grep -qE 'SKILL\.md$' <<<"$mudou"; then
+    if ! saida=$(python3 "$AQUI/check_skills.py" --rev "$novo" ${atual:+--base-rev "$atual"} 2>&1); then
+        bloqueia "Gate skills reprovou a árvore nova:\n$saida"
+    fi
+fi
+
+case ",${HARNESS_SKIP:-}," in
+    *,docrefs,*) mudou_md=""; echo "main-ref: docrefs pulado (HARNESS_SKIP)" >&2 ;;
+    *) mudou_md=$(grep -E '\.md$' <<<"$mudou" || true) ;;
+esac
+raiz=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+raiz=${raiz%/.git}
+if [ -f "$AQUI/check_doc_refs.py" ]; then
+    verificador=("$AQUI/check_doc_refs.py" --root)
+elif [ -f "$raiz/.harness/documentation.py" ]; then
+    verificador=("$raiz/.harness/documentation.py" --root)
+else
+    verificador=()
+fi
+if [ -n "$mudou_md" ] && [ ${#verificador[@]} -gt 0 ]; then
+    tmp=$(mktemp -d) || bloqueia "mktemp falhou — sem verificação, sem atualização da main"
+    trap 'rm -rf "$tmp"' EXIT
+    if ! git archive "$novo" | tar -x -C "$tmp" 2>/dev/null; then
+        bloqueia "não consegui exportar a árvore ${novo:0:7} para verificar os docs"
+    fi
+    # Num meta-repo, os docs podem apontar para repositórios de código vizinhos,
+    # que não estão na árvore exportada: expõe os que existem no checkout real.
+    for d in "$raiz"/*/; do
+        d=${d%/}
+        [ -e "$d/.git" ] && [ ! -e "$tmp/$(basename "$d")" ] && ln -s "$d" "$tmp/$(basename "$d")"
+    done
+    env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE git init -q "$tmp" 2>/dev/null
+    verificador+=("$tmp")
+    case "${verificador[0]}" in */documentation.py) verificador+=(check) ;; esac
+    if ! saida=$(cd "$tmp" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE python3 "${verificador[@]}" 2>&1); then
+        bloqueia "Gate docrefs reprovou a árvore nova:\n$saida"
+    fi
+fi
+
+exit 0

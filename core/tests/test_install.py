@@ -46,6 +46,7 @@ class Instalador(unittest.TestCase):
         self.assertFalse((self.alvo / "project_docs").exists())
         self.assertTrue((self.alvo / ".harness/validation.py").is_file())
         self.assertFalse((self.alvo / "scripts/merge_gate.sh").exists())
+        self.assertFalse((self.alvo / ".githooks/reference-transaction").exists())
         self.assertIn("validation.py", (self.alvo / ".githooks/pre-push").read_text())
 
     def test_perfil_github_e_opt_in(self):
@@ -54,6 +55,12 @@ class Instalador(unittest.TestCase):
         self.assertTrue((self.alvo / "scripts/merge_gate.sh").is_file())
         self.assertTrue((self.alvo / ".agents/test_merge_gate_base.sh").is_file())
         self.assertTrue((self.alvo / ".agents/quadro.sh").is_file())
+        self.assertTrue(os.access(self.alvo / ".githooks/reference-transaction", os.X_OK))
+        # O teste da guarda roda a partir da instalação, com os caminhos padrão.
+        guarda = subprocess.run(["bash", str(self.alvo / ".agents/test_ref_main.sh")],
+                                capture_output=True, text=True, timeout=600)
+        self.assertEqual(guarda.returncode, 0, guarda.stdout + guarda.stderr)
+        self.assertIn("tudo verde", guarda.stdout)
 
     def test_hook_codex_preserva_caminho_com_metacaracteres(self):
         target = Path(self._tmp.name) / "quote' space $(touch INJECTED) `touch INJECTED`"
