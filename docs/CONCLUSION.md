@@ -1,5 +1,11 @@
 # Conclusões — Sovereign Harness
 
+## 2026-10-23 — Guarda da `main` do repositório de coordenação e falsa negativa do `grep -q`
+
+No projeto de origem, a `main` do repositório de coordenação andava por caminhos que nenhum gate via: cinco publicações seguidas entraram por `update-ref`, e uma edição em lote não declarada de 3 skills no checkout principal ficou a um `commit -a` de entrar. Ao validar a correção apareceu um defeito antigo do `pre-commit`: `produtor | grep -q` sob `pipefail` falha quando o `grep` sai cedo (SIGPIPE no produtor), e a exceção `docrefs` era ignorada em 152 de 300 execuções; com lista grande, 200 em 200. Este kit era a fonte do `pre-commit` do perfil legado e carregava o mesmo defeito.
+
+Entregue no perfil legado: `reference-transaction` (a `main` só avança; árvore nova passa nos verificadores de skills e links, sobre o commit), gate `main` no `pre-commit`, conclusão de merge que só traz o quadro da `main` liberada, here-string no lugar dos pipes. No núcleo: `quadro.sh saude` acusa edição não declarada; skills `estado-compartilhado-multi-agente` (§7), `vies-de-plausibilidade` (§4) e `quadro-de-trabalho` atualizadas e sincronizadas. Evidência: `templates/git/test_ref_main.sh` 30/30 verde; prova de mutação — `pre-commit` anterior reprova B1, B3, Q1 e P1 (skip ignorado em 3/30), guarda sem ancestralidade reprova A7, sem docrefs reprova A5, com `printf | grep -q` reprova P2; `test_quadro.sh` S6 reprova contra o helper anterior (S6a, S6c); 98 testes do core verdes, incluindo o teste da guarda rodado a partir de uma instalação; shellcheck limpo; sincronia em dia. Limite conhecido: a asserção "`--estrito` reprova" do S6a passaria também por alertas anteriores do mesmo cenário; a prova de S6 está nas asserções de conteúdo. Não lançado.
+
 ## 2026-10-21 — Publicação documental: `saude` do quadro e passo "publique e prove"
 
 No projeto de origem, a documentação commitada em branch de agente do repositório de coordenação não chegava à branch principal. Foram medidas 11 branches com commits fora dela; uma ADR citada pelo código ficou 3 semanas só numa branch; 20 entradas do quadro ficaram paradas em "Em andamento". Sem remote nem PR nesse repositório, nada lembrava. Este kit é a fonte da skill e do helper, então a correção entra aqui primeiro e o consumidor adota cópia idêntica.

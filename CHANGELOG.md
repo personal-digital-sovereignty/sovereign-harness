@@ -3,9 +3,18 @@
 ## [Não lançado]
 
 ### Added
+- Perfil legado: `templates/git/reference-transaction`, guarda da ref `main` do repositório de coordenação. Cobre o que o `pre-commit` não vê (`merge`, `update-ref`, `reset`): recusa deleção e recuo da `main` (comparação contra a ref atual — o "old" do stdin vem zerado em atualização forçada) e árvore nova que reprove os verificadores de skills (`check_skills.py --rev`, se o projeto o tiver) e de links (`check_doc_refs.py --root`, senão `.harness/documentation.py`), rodados sobre um export do commit, não sobre o disco. Num `merge` recusado o git já escreveu a árvore de trabalho: a recusa lista os arquivos e o `git restore --source=main` seletivo, nunca `reset --hard`. Exceções `HARNESS_SKIP=main-ref` e `docrefs`. Instalado pelo perfil legado com `.agents/test_ref_main.sh` (A1–A10, B1–B4, Q1–Q2, P1–P2), que também roda no CI e a partir da instalação.
+- Perfil legado, `pre-commit`, gate `main`: na `main` só se commita o quadro e a conclusão de merge (`HARNESS_SKIP=main`). A conclusão de merge que só incorpora o quadro idêntico ao da `main` deixa de ser barrada como edição do quadro.
+- `quadro.sh saude`: acusa arquivo alterado ou novo no checkout principal sem declaração em "Paths sob edição" de "Em andamento" (caminho, nome+diretório pai, ou diretório declarado; o próprio quadro não conta). Teste S6a–S6e.
 - `quadro.sh saude [--estrito]`: relatório do que está fora da branch principal no repositório de coordenação — branches com conteúdo pendente (patch sem equivalente, via `git cherry`), separando as que só faltam apagar e as órfãs sem entrada ativa no quadro — e das entradas de "Em andamento" sem data nova há mais de `QUADRO_DIAS_PARADA` (3) dias. Não bloqueia; `--estrito` sai 1. `quadro.sh ler` imprime o relatório em stderr ao final (stdout intacto; `QUADRO_SEM_SAUDE=1` desliga). Teste hermético S0–S5 em `templates/git/test_quadro.sh`, provado no negativo (contra o helper anterior as asserções positivas reprovam).
 
+### Fixed
+- Perfil legado, `pre-commit`: `produtor | grep -q` sob `pipefail` dava falsa negativa — o `grep -q` sai cedo, o produtor leva SIGPIPE e o pipeline conta como falha. Medido no projeto de origem: `env | grep -q` ignorava `HARNESS_SKIP=docrefs` em 152/300 execuções; com lista grande, `printf | grep -q` errou 200/200 (gate pulado). Trocado por here-string e `case`; o mesmo padrão saiu do `install.sh`. Scripts auxiliares do hook resolvidos pelo diretório do hook, não pelo CWD. Regressão P1/P2 reprova contra a versão anterior.
+
 ### Changed
+- Skill `estado-compartilhado-multi-agente`: §7, publicar na `main` do repositório de coordenação com o checkout principal sujo de outra sessão (update-ref com CAS + restore seletivo + patch), encadeado com `&&` porque no shell de ferramenta do agente o `set -e` pode não abortar (medido); efeito do merge recusado pela guarda.
+- Skill `vies-de-plausibilidade` §4: o filtro pode estar no próprio gate (`produtor | grep -q` sob `pipefail`).
+- Skill `quadro-de-trabalho` e `/quadro`: guardas novas e edição não declarada na `saude`.
 - Skill `encerrar-documentacao`: passo 7, "publique e prove" — commit em branch não é entrega; a unidade encerrada entra na linha principal no mesmo passo e se prova com `git merge-base --is-ancestor`, conferindo a `saude` do quadro. Passo 5: documento já citado fora do repositório que muda de lugar ganha registro origem → destino, sem reescrever a referência histórica. Passo 6: inclui verificadores entre repositórios.
 - Skill `quadro-de-trabalho` e comando `/quadro`: documentam a `saude` e o fechamento pela branch principal.
 
