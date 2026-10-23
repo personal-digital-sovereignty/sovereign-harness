@@ -29,7 +29,7 @@ uma stack, SO ou integração de agente não exercitados.
 | Codex | `.agents/plugins/marketplace.json`, `plugins/codex/` | plugin de skills; guard via `.codex/hooks.json` do projeto |
 | OpenCode | `plugins/opencode/` | plugin TS em `tool.execute.before` |
 | Antigravity | `plugins/antigravity/` | regras `always_on` e workflows |
-| Gates de git | `core/validation.py`, `templates/git/` | comandos por argv/cwd; pre-push verifica checkout e refs; pre-commit verifica links. Adaptador GitHub/Rust/Node opcional |
+| Gates de git | `core/validation.py`, `templates/git/` | comandos por argv/cwd; pre-push verifica checkout e refs; pre-commit verifica links. Adaptador GitHub/Rust/Node opcional, com guarda da `main` do repositório de coordenação (`reference-transaction`) |
 | Documentação | `templates/docs/` | AGENTS.md, PENDING, ROADMAP, CONCLUSION, categorias e templates; migração explícita e verificador |
 | Instalador | `install.sh` | idempotente, nunca sobrescreve |
 

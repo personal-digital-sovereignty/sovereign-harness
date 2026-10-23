@@ -1,6 +1,6 @@
 ---
 name: estado-compartilhado-multi-agente
-description: Como não estragar o ambiente de outras sessões que trabalham na MESMA árvore — worktree derivado de main local desatualizado, arquivo inteiro sobrescrito por versão antiga, rm que atravessa symlink, npm install que materializa node_modules compartilhado, e o HEAD que outra sessão move debaixo de você. Carregar antes de criar git worktree, antes de qualquer rm/mv fora do seu diretório, antes de npm install/update, e antes de interpretar um erro de build que "apareceu do nada".
+description: Como não estragar o ambiente de outras sessões que trabalham na MESMA árvore — worktree derivado de main local desatualizado, arquivo inteiro sobrescrito por versão antiga, rm que atravessa symlink, npm install que materializa node_modules compartilhado, e o HEAD que outra sessão move debaixo de você. Carregar antes de criar git worktree, antes de qualquer rm/mv fora do seu diretório, antes de npm install/update, antes de publicar na main com o checkout principal sujo de outra sessão (§7), e antes de interpretar um erro de build que "apareceu do nada".
 ---
 
 # Estado compartilhado — o que quebra quando vários agentes usam a mesma árvore
@@ -45,6 +45,38 @@ Nunca `git add -A`/`git add .`. Adicione por nome; antes do commit confira `git 
 
 Ela é a mesma para todos os worktrees. `git stash pop` pode pegar o trabalho de outra sessão. Prefira commit WIP; se precisar, `git stash push -u -m <tag-unica>`, guarde o SHA, `git stash apply <sha>`, e `drop` pela referência achada pela tag.
 
+## 7. Publicar na `main` do repositório de coordenação com o checkout principal sujo de outra sessão
+
+Num repositório de coordenação sem remote, "merge" é mover `refs/heads/main`, e o diretório principal fica sempre com a `main` em checkout. Quando outra sessão deixou sujo, sem commitar, um arquivo que o seu merge também altera, `git merge` ali **recusa** — por arquivo sujo, não por conflito. As saídas óbvias são ruins: `--autostash`/`stash` mexem na pilha compartilhada (§6) e no trabalho alheio; esperar pode levar horas. Caso de origem: uma correção de 6 arquivos travada porque um deles tinha 14 linhas de edição alheia que nem encostavam no trecho do merge.
+
+```bash
+# 1. No SEU worktree: traga a main, valide, confira o que a main vai receber
+git merge main
+git diff --stat main HEAD           # só os seus arquivos; se aparecer outro, pare
+
+# 2. No principal, pré-checagem (nada é alterado ainda)
+git status --porcelain -- <seus arquivos limpos>     # vazio
+git diff main NEW -- <arquivo sujo> > p.patch
+git apply --check p.patch                            # o seu trecho entra por cima do alheio
+
+# 3. Tudo num comando só, ENCADEADO com && — no shell de ferramenta do agente
+#    o `set -e` pode não abortar (medido: `set -e; false; echo x` imprime x)
+git update-ref refs/heads/main NEW OLD &&   # CAS: recusa se a main andou
+git checkout NEW -- <seus arquivos limpos> &&
+git reset -q -- <arquivo sujo> &&           # index ← nova main
+git apply p.patch                           # working copy = nova main + edição alheia
+
+# 4. Prova
+git diff --cached --quiet                 # nada staged no checkout dela
+git diff --stat <arquivo sujo>            # igual ao de antes: só a edição alheia
+```
+
+**O passo 3 precisa ser completo**: o `update-ref` move a `main`, mas não toca no index nem nos arquivos. Sem `checkout`/`reset`/`apply`, o index fica com as versões **velhas** dos seus arquivos, e o próximo `git commit -a` da outra sessão **reverte o seu trabalho** sem conflito e sem aviso.
+
+**Com a guarda da ref instalada** (`.githooks/reference-transaction`, perfil legado), o `update-ref` do passo 3 só passa se a `main` estiver avançando e a árvore nova passar nos gates de documentação; recusado, nada mudou — corrija na branch e repita. Se você usar `git merge` e ele for recusado, o git **já terá escrito** o conteúdo na árvore de trabalho do checkout principal (só a ref fica parada). Restaure só os arquivos que a recusa lista (`git restore --source=main --staged --worktree -- ...`), **nunca** com `reset --hard`, que apaga o trabalho não commitado das outras sessões.
+
+**Antes de concluir que o arquivo sujo é trabalho de alguém**, confira que não é cópia velha esquecida: `git log --all --find-object=$(git hash-object <arquivo>)` vazio = conteúdo que não existe em commit nenhum, ou seja, trabalho real. Timestamps idênticos em vários arquivos indicam escrita em lote, não edição à mão. O `quadro.sh saude` acusa arquivo alterado no checkout principal que nenhuma entrada declara em "Paths sob edição".
+
 ## Regra prática
 
 | Vou... | Confira com |
@@ -53,6 +85,7 @@ Ela é a mesma para todos os worktrees. `git stash pop` pode pegar o trabalho de
 | apagar/mover arquivo | `readlink -f` no caminho |
 | instalar dependência | `ls -la node_modules \| head -1` |
 | commitar | `git branch --show-current` e `git diff --cached --stat` |
+| publicar na `main` com checkout sujo alheio | §7, encadeado com `&&` |
 | propagar o mesmo arquivo para N repos | `md5sum` nos N |
 
 ## A lição maior

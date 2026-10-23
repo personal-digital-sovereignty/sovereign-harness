@@ -63,6 +63,20 @@ e quadro em main. Seus pressupostos de Rust/Node, origin/main, GitHub e máquina
 compartilhada são explícitos; não pertencem ao núcleo portável. Perfis futuros
 devem declarar contratos e evidência, sem se apresentar como padrão universal.
 
+No perfil legado, a `main` do repositório de coordenação (o do quadro, sem
+remote) é protegida em duas camadas, ativas com `core.hooksPath`:
+`pre-commit` recusa commit direto na `main` que não seja só o quadro ou a
+conclusão de um merge (`HARNESS_SKIP=main`), e `reference-transaction`
+(git ≥ 2.28) cobre o que o pre-commit não vê — `merge`, `update-ref`,
+`reset`: a `main` só avança, e a árvore nova passa nos verificadores de skills
+(`.githooks/check_skills.py --rev`, se o projeto tiver) e de links
+(`.githooks/check_doc_refs.py --root`, senão `.harness/documentation.py`),
+rodados sobre o commit, não sobre o disco (`HARNESS_SKIP=main-ref`; só os
+links: `HARNESS_SKIP=docrefs`). Teste hermético: `.agents/test_ref_main.sh`.
+Num repositório com remote a guarda vale também para a `main` local — um
+`pull` que traga link quebrado ou um `reset` para trás são recusados; ali,
+não instale o hook ou use a exceção nomeada.
+
 `--sem-git` preserva a esteira existente. Arquivos diferentes continuam conflitos
 para integração manual; o instalador não substitui hooks do usuário nem ativa
 `core.hooksPath` silenciosamente. Atualização gerenciada continua no PENDING.
