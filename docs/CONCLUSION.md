@@ -1,5 +1,9 @@
 # Conclusões — Sovereign Harness
 
+## 2026-10-24 — Asserções do `test_quadro.sh` que não provavam o que diziam
+
+A entrada de 2026-10-23 registrou como limite conhecido que a asserção "`--estrito` reprova" do S6a passaria também por alertas anteriores. Era defeito do teste, e foi corrigido em vez de mantido como limite. Medido no ponto do S6a: com `QUADRO_DIAS_PARADA=99999` o único alerta é o arquivo solto (`--estrito` sai 0 antes e 1 depois); a asserção agora usa essa linha de base e reprova contra o helper anterior ao S6 (`9a2e902`: S6a ×2 e S6c), onde antes passava. Na mesma revisão, as asserções `echo "$saida" | grep -q` viraram here-string — a classe da falsa negativa do `grep -q` sob `pipefail` corrigida nos hooks do #16 continuava no próprio teste, e numa asserção negativa ela vira `ok`. O CI macOS do #16 já tinha pego o `sed -i` só GNU do S6d (`3dd0896`). Não lançado.
+
 ## 2026-10-23 — Guarda da `main` do repositório de coordenação e falsa negativa do `grep -q`
 
 No projeto de origem, a `main` do repositório de coordenação andava por caminhos que nenhum gate via: cinco publicações seguidas entraram por `update-ref`, e uma edição em lote não declarada de 3 skills no checkout principal ficou a um `commit -a` de entrar. Ao validar a correção apareceu um defeito antigo do `pre-commit`: `produtor | grep -q` sob `pipefail` falha quando o `grep` sai cedo (SIGPIPE no produtor), e a exceção `docrefs` era ignorada em 152 de 300 execuções; com lista grande, 200 em 200. Este kit era a fonte do `pre-commit` do perfil legado e carregava o mesmo defeito.
