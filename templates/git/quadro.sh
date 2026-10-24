@@ -224,11 +224,42 @@ if paradas:
         linhas.append(f"  ⚠ {titulo[:90]} — {quando}")
     linhas.append("  → atualize, mova para Concluído ou para Interrompido (verificando antes, nunca apagando).")
 
+# --- 3. arquivo alterado no checkout principal que ninguém declarou ----------
+# O git não impede escrita em disco. Em 2026-10-23 uma edição em lote, não
+# declarada em nenhum "Paths sob edição", reescreveu 3 skills no checkout
+# principal e só foi achada por acaso. Aqui ela aparece para a próxima sessão
+# que ler o quadro. Declarado = o caminho aparece numa linha "Paths sob edição"
+# de "Em andamento", ou aparecem nela o nome do arquivo E o do diretório pai, ou
+# a linha declara um diretório que o contém. O próprio quadro não conta.
+declarado = "\n".join(l for l in em_andamento.splitlines() if "Paths sob edição" in l)
+def foi_declarado(caminho):
+    if caminho in declarado:
+        return True
+    base, pai = os.path.basename(caminho), os.path.basename(os.path.dirname(caminho))
+    for l in declarado.splitlines():
+        if base in l and (not pai or pai in l):
+            return True
+        if any(caminho.startswith(tok.strip("`*,;() ")) for tok in l.split() if tok.strip("`*,;() ").endswith("/")):
+            return True
+    return False
+nao_declarados = []
+for l in git("status", "--porcelain", "--untracked-files=all").splitlines():
+    caminho = l[3:].split(" -> ")[-1].strip('"')
+    if caminho and caminho != ".agents/agents_work.md" and not foi_declarado(caminho):
+        nao_declarados.append((l[:2].strip() or "?", caminho))
+if nao_declarados:
+    linhas.append("Arquivos alterados no checkout principal sem declaração em \"Paths sob edição\":")
+    for estado, caminho in nao_declarados:
+        alertas += 1
+        linhas.append(f"  ⚠ [{estado}] {caminho}")
+    linhas.append("  → de quem é? Quem está editando declara na própria entrada. Não sobrescreva nem")
+    linhas.append("    descarte sem dono: confira conteúdo (git log --all --find-object) e pergunte no quadro.")
+
 print(f"━━━ saúde do quadro (main {git('rev-parse', '--short', 'main').strip()}, hoje {hoje_txt}) ━━━")
 if linhas:
     print("\n".join(linhas))
 else:
-    print("✅ nada fora da main, nenhuma entrada parada.")
+    print("✅ nada fora da main, nenhuma entrada parada, nenhuma edição não declarada.")
 sys.exit(1 if (estrito and alertas) else 0)
 PYEOF
 }

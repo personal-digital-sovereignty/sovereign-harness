@@ -167,10 +167,12 @@ if [ $COM_GIT -eq 1 ]; then
     instala "$KIT/templates/radar.example.tsv" ".harness/radar.tsv"   # lido pelo pre-push do kit
     instala "$KIT/templates/git/pre-push" ".githooks/pre-push" 755
     instala "$KIT/templates/git/pre-commit" ".githooks/pre-commit" 755
+    instala "$KIT/templates/git/reference-transaction" ".githooks/reference-transaction" 755
     instala "$KIT/templates/git/merge_gate.sh" "scripts/merge_gate.sh" 755
     instala "$KIT/templates/git/test_merge_gate_base.sh" ".agents/test_merge_gate_base.sh" 755
     instala "$KIT/templates/git/quadro.sh" ".agents/quadro.sh" 755
     instala "$KIT/templates/git/test_quadro.sh" ".agents/test_quadro.sh" 755
+    instala "$KIT/templates/git/test_ref_main.sh" ".agents/test_ref_main.sh" 755
   fi
 fi
 
@@ -279,7 +281,9 @@ echo "já iguais:  ${#IGUAIS[@]}"
 if [ ${#CONFLITOS[@]} -gt 0 ]; then
     echo "CONFLITOS:  ${#CONFLITOS[@]} (não sobrescritos — compare e mescle à mão)"
     printf '   ! %s\n' "${CONFLITOS[@]}"
-    printf '%s\n' "${CONFLITOS[@]}" | grep -q '^\.claude/skills' && \
+    # Here-string, não `printf | grep -q`: sob pipefail o grep -q sai cedo e o
+    # pipeline pode "falhar" por SIGPIPE do produtor.
+    grep -q '^\.claude/skills' <<<"$(printf '%s\n' "${CONFLITOS[@]}")" && \
         echo "   → .claude/skills é diretório real: mova as skills para .agents/skills e troque-o pelo symlink ../.agents/skills"
 fi
 echo ""

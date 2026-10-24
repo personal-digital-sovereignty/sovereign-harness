@@ -44,7 +44,7 @@ jobs:
         run: python3 -m unittest discover -s core/tests -v
       - name: Shell (sintaxe e shellcheck)
         run: |
-          for f in install.sh templates/git/pre-push templates/git/pre-commit templates/git/pre-push-portable templates/git/pre-commit-portable templates/git/merge_gate.sh templates/git/test_merge_gate_base.sh templates/git/quadro.sh templates/git/test_quadro.sh; do
+          for f in install.sh templates/git/pre-push templates/git/pre-commit templates/git/reference-transaction templates/git/test_ref_main.sh templates/git/pre-push-portable templates/git/pre-commit-portable templates/git/merge_gate.sh templates/git/test_merge_gate_base.sh templates/git/quadro.sh templates/git/test_quadro.sh; do
             bash -n "$f"
           done
           # Análise estática independe de SO; o binário só existe no ubuntu.
@@ -53,6 +53,8 @@ jobs:
         run: bash templates/git/test_quadro.sh templates/git/quadro.sh
       - name: Teste hermético do vínculo merge-base
         run: bash templates/git/test_merge_gate_base.sh templates/git/merge_gate.sh
+      - name: Teste hermético da guarda da main (pre-commit + reference-transaction)
+        run: bash templates/git/test_ref_main.sh templates/git core/documentation.py
 
   tipos-opencode:
     name: Tipos do plugin do OpenCode

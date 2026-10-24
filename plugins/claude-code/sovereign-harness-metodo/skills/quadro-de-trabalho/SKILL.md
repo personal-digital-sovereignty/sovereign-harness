@@ -28,7 +28,7 @@ quadro.sh commit "docs(quadro): <o que mudou>"
 quadro.sh saude [--estrito]   # o que está fora da main e o que está parado
 ```
 
-O `ler` termina com o relatório de `saude` em stderr (o quadro em stdout fica intacto): branches do repositório de coordenação com conteúdo fora da principal — separando as que só faltam apagar das órfãs sem entrada ativa — e entradas de "Em andamento" sem data nova há mais de 3 dias. Não bloqueia; trate o que for seu.
+O `ler` termina com o relatório de `saude` em stderr (o quadro em stdout fica intacto): branches do repositório de coordenação com conteúdo fora da principal — separando as que só faltam apagar das órfãs sem entrada ativa — entradas de "Em andamento" sem data nova há mais de 3 dias, e arquivos alterados no checkout principal sem declaração em "Paths sob edição". Não bloqueia; trate o que for seu.
 
 O `commit` usa `git commit <caminho>`, que leva só o quadro (o index costuma ter trabalho alheio staged). Com o diretório principal na branch de outra sessão, o helper commita por plumbing (`hash-object` + index temporário + `commit-tree` + `update-ref` com compare-and-swap), sem tocar no working tree dela, e recusa se a branch principal avançou desde a sua leitura.
 
@@ -63,3 +63,5 @@ Timestamp velho, sem PR aberto, sessão sumida: verifique (`git branch -a`, list
 - O pre-commit recusa commitar o quadro de um worktree, fora da branch principal, ou de carona com arquivos de outro assunto.
 - E recusa commit que APAGA entrada sem readicioná-la (mover para "Concluído" readiciona o título). Caso de origem: um rascunho deixado por outra sessão horas antes subiu por cima da branch principal e apagou 46 linhas do quadro.
 - `git merge` não dispara pre-commit: depois de merge que toque o diretório do quadro, confira as entradas (`grep -c '^### '`).
+- No perfil legado, o pre-commit também recusa commit direto na branch principal que não seja só o quadro ou a conclusão de um merge; o `reference-transaction` recusa recuo e deleção da principal e árvore nova que reprove os verificadores de documentação, inclusive por `merge` e `update-ref`. Caso de origem: cinco publicações seguidas entraram por `update-ref` sem gate nenhum, e uma edição em lote não declarada de 3 skills ficou a um `commit -a` de entrar.
+- A `saude` acusa arquivo alterado ou novo no checkout principal que nenhuma entrada de "Em andamento" declara em "Paths sob edição" — o git não impede escrita em disco. Se é seu, declare; se não é, não sobrescreva nem descarte sem dono.

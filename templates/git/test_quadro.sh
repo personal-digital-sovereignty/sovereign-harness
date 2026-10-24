@@ -147,5 +147,30 @@ diff <("$HELPER" ler 2>/dev/null) <(git show main:.agents/agents_work.md) >/dev/
 "$HELPER" ler 2>&1 >/dev/null | grep -q "saúde do quadro" && ok "S5: saúde sai em stderr" || nok "S5: saúde não apareceu em stderr"
 [ -z "$(QUADRO_SEM_SAUDE=1 "$HELPER" ler 2>&1 >/dev/null)" ] && ok "S5: QUADRO_SEM_SAUDE desliga" || nok "S5: QUADRO_SEM_SAUDE não desligou"
 
+
+# S6 — edição não declarada no checkout principal (o caso de 2026-10-23: uma
+# edição em lote sem "Paths sob edição" reescreveu 3 skills e ninguém viu).
+echo "rascunho de alguém" > docs/solta.md
+saida=$("$HELPER" saude 2>&1)
+echo "$saida" | grep -q "⚠ \[??\] docs/solta.md" && ok "S6a: arquivo novo não declarado acusado" || nok "S6a: não acusou o arquivo solto: $saida"
+"$HELPER" saude --estrito >/dev/null 2>&1 && nok "S6a: --estrito deixou passar edição não declarada" || ok "S6a: --estrito reprova edição não declarada"
+printf '\n### claude/dono-da-solta — escrevendo\n- **Última atualização**: 2026-10-20 10:00 (UTC)\n- **Paths sob edição**: `docs/solta.md`\n' >> .agents/agents_work.md
+git commit -qam "quadro: declara docs/solta.md"
+saida=$("$HELPER" saude 2>&1)
+echo "$saida" | grep -q "docs/solta.md" && nok "S6b: acusou arquivo declarado: $saida" || ok "S6b: arquivo declarado não é acusado"
+echo "x" >> docs/ADR-999.md
+saida=$("$HELPER" saude 2>&1)
+echo "$saida" | grep -q "⚠ \[M\] docs/ADR-999.md" && ok "S6c: arquivo rastreado modificado e não declarado acusado" || nok "S6c: modificado não acusado: $saida"
+# `sed -i` sem sufixo é só do GNU: no macOS ele falha e o cenário roda sem a
+# declaração (pego pelo CI macOS). Sufixo explícito funciona nos dois.
+sed -i.bak 's|`docs/solta.md`|`docs/`|' .agents/agents_work.md && rm -f .agents/agents_work.md.bak \
+    && grep -qF '`docs/`' .agents/agents_work.md && git commit -qam "quadro: declara o diretório" || nok "PREPARO S6d: declaração do diretório não aplicada"
+saida=$("$HELPER" saude 2>&1)
+echo "$saida" | grep -q "docs/ADR-999.md" && nok "S6d: diretório declarado não cobriu o arquivo: $saida" || ok "S6d: diretório declarado cobre os arquivos dentro dele"
+echo "edicao-no-quadro" >> .agents/agents_work.md
+saida=$("$HELPER" saude 2>&1)
+echo "$saida" | grep -q "agents_work.md" && nok "S6e: acusou o próprio quadro" || ok "S6e: o próprio quadro sujo não é acusado"
+git checkout -q -- .agents/agents_work.md docs/ADR-999.md && rm -f docs/solta.md
+
 echo
 if [ "$falhas" -eq 0 ]; then echo "TUDO OK"; else echo "$falhas falha(s)"; exit 1; fi
