@@ -161,7 +161,10 @@ echo "$saida" | grep -q "docs/solta.md" && nok "S6b: acusou arquivo declarado: $
 echo "x" >> docs/ADR-999.md
 saida=$("$HELPER" saude 2>&1)
 echo "$saida" | grep -q "⚠ \[M\] docs/ADR-999.md" && ok "S6c: arquivo rastreado modificado e não declarado acusado" || nok "S6c: modificado não acusado: $saida"
-sed -i 's|`docs/solta.md`|`docs/`|' .agents/agents_work.md && git commit -qam "quadro: declara o diretório"
+# `sed -i` sem sufixo é só do GNU: no macOS ele falha e o cenário roda sem a
+# declaração (pego pelo CI macOS). Sufixo explícito funciona nos dois.
+sed -i.bak 's|`docs/solta.md`|`docs/`|' .agents/agents_work.md && rm -f .agents/agents_work.md.bak \
+    && grep -qF '`docs/`' .agents/agents_work.md && git commit -qam "quadro: declara o diretório" || nok "PREPARO S6d: declaração do diretório não aplicada"
 saida=$("$HELPER" saude 2>&1)
 echo "$saida" | grep -q "docs/ADR-999.md" && nok "S6d: diretório declarado não cobriu o arquivo: $saida" || ok "S6d: diretório declarado cobre os arquivos dentro dele"
 echo "edicao-no-quadro" >> .agents/agents_work.md
