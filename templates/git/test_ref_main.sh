@@ -88,6 +88,10 @@ printf '# Docs\n' > docs/README.md
 skill_ok base
 git add -A && git commit -qm base            # hooks ainda desligados: a base é o ponto de partida
 git config core.hooksPath "$R/.githooks"     # config LOCAL do repo descartável
+# Sem gc/maintenance automáticos: o commit de 6000 arquivos (P2) dispara um
+# `gc --auto` destacado que sobrevive ao teste e escreve `objects/info/packs`
+# enquanto o trap apaga o diretório — `rm` falha e sobra lixo no /tmp (medido).
+git config gc.auto 0 && git config maintenance.auto false
 
 # --- B: commit direto na main ----------------------------------------------------
 echo x >> docs/README.md && git add docs/README.md
