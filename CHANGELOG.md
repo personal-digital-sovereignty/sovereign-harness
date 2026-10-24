@@ -1,6 +1,6 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
+## [0.7.0] — 2026-10-24 — guarda da main do repositório de coordenação e saúde do quadro
 
 ### Added
 - Perfil legado: `templates/git/reference-transaction`, guarda da ref `main` do repositório de coordenação. Cobre o que o `pre-commit` não vê (`merge`, `update-ref`, `reset`): recusa deleção e recuo da `main` (comparação contra a ref atual — o "old" do stdin vem zerado em atualização forçada) e árvore nova que reprove os verificadores de skills (`check_skills.py --rev`, se o projeto o tiver) e de links (`check_doc_refs.py --root`, senão `.harness/documentation.py`), rodados sobre um export do commit, não sobre o disco. Num `merge` recusado o git já escreveu a árvore de trabalho: a recusa lista os arquivos e o `git restore --source=main` seletivo, nunca `reset --hard`. Exceções `HARNESS_SKIP=main-ref` e `docrefs`. Instalado pelo perfil legado com `.agents/test_ref_main.sh` (A1–A10, B1–B4, Q1–Q2, P1–P2), que também roda no CI e a partir da instalação.
@@ -9,6 +9,7 @@
 - `quadro.sh saude [--estrito]`: relatório do que está fora da branch principal no repositório de coordenação — branches com conteúdo pendente (patch sem equivalente, via `git cherry`), separando as que só faltam apagar e as órfãs sem entrada ativa no quadro — e das entradas de "Em andamento" sem data nova há mais de `QUADRO_DIAS_PARADA` (3) dias. Não bloqueia; `--estrito` sai 1. `quadro.sh ler` imprime o relatório em stderr ao final (stdout intacto; `QUADRO_SEM_SAUDE=1` desliga). Teste hermético S0–S5 em `templates/git/test_quadro.sh`, provado no negativo (contra o helper anterior as asserções positivas reprovam).
 
 ### Fixed
+- `test_ref_main.sh`: o commit de 6000 arquivos do P2 disparava um `gc --auto` destacado que sobrevivia ao teste e escrevia `objects/info/packs` enquanto o `trap` apagava o diretório — o `rm` falhava e sobrava lixo no `/tmp` (2 de 3 rodadas). O repositório descartável agora tem `gc.auto 0` e `maintenance.auto false`; 0 de 6 rodadas com resíduo.
 - `test_quadro.sh`: a asserção "S6a `--estrito` reprova edição não declarada" passava também com o helper sem o alerta, porque as entradas paradas do S4 já reprovavam; agora roda com `QUADRO_DIAS_PARADA` alto, com linha de base que precisa passar antes do arquivo solto, e reprova contra o helper anterior. As asserções por `echo "$saida" | grep -q` (18, mais o `main_tem` e o S5) viraram here-string: numa asserção negativa (`grep -q X && nok || ok`) a falsa negativa do pipe sob `pipefail` vira `ok`. O S6d usava `sed -i` sem sufixo, só do GNU; no macOS o preparo falhava (pego pelo CI do #16).
 - Perfil legado, `pre-commit`: `produtor | grep -q` sob `pipefail` dava falsa negativa — o `grep -q` sai cedo, o produtor leva SIGPIPE e o pipeline conta como falha. Medido no projeto de origem: `env | grep -q` ignorava `HARNESS_SKIP=docrefs` em 152/300 execuções; com lista grande, `printf | grep -q` errou 200/200 (gate pulado). Trocado por here-string e `case`; o mesmo padrão saiu do `install.sh`. Scripts auxiliares do hook resolvidos pelo diretório do hook, não pelo CWD. Regressão P1/P2 reprova contra a versão anterior.
 
