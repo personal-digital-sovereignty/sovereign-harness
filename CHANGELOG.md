@@ -1,5 +1,15 @@
 # Changelog — Sovereign Harness
 
+## [0.7.1] — 2026-10-25 — lição corrigida do `set -e` e o padrão perigoso provado
+
+### Changed
+- Skill `estado-compartilhado-multi-agente` §7: a lição "no shell de ferramenta do agente o `set -e` pode não abortar" foi **desmentida como regra de harness** e reescrita pelo motivo correto. O mesmo comando medido nos dois lados deu resultados opostos — no Claude Code (2026-10-23) `set -e; false; echo x` imprimiu `x`; no OpenCode (2026-10-25) **abortou com rc=1**, inline, via `bash -c`, em arquivo `.sh` e sob o `rtk` — porque o shell ignora `errexit` por especificação dentro de `if`, `&&`/`||`, `while`/`until` e substituição de comando, que é como um harness embrulha o comando. `set -e` não é contrato entre harnesses; o `&&` vale nos dois. A rede real do passo 3 é a guarda da ref. Validação no projeto de origem: 26 corridas do `test_ref_main.sh` verdes.
+
+- Skills `vies-de-plausibilidade` (§4) e nota do `pre-commit`: ressala de medição nas taxas de falsa negativa do `grep -q` sob `pipefail` — o mecanismo (SIGPIPE ao comando de leitura rápida) reproduz sempre; os números (152/300, 200/200) eram **uma rodada observada**, de corrida: revalidados no mesmo host, 0–52/300 e 0–1/30, e só o caso de lista grande foi determinístico (94 KB com o match na 1ª linha: 50/50 com `printf`, 0/50 com here-string). Cite o mecanismo; trate cada número como rodada.
+
+### Added
+- `templates/git/test_ref_main.sh`: asserção P3 — nenhum `printf ... | grep -q` (em linha de código; comentários não contam) pode voltar ao `pre-commit`/`reference-transaction`. Prova da forma, porque o mutante M6 na guarda do quadro é inalcançável pelo hook em funcionamento normal (lista grande na `main` é barrada antes pelos gates `main`/`outros`) e o comportamento na corrida não é determinístico; no arranjo grande do P2, o mutante no gate de skills já deixa a skill quebrada entrar. Reprovado no negativo: com o `grep -qxF "$QUADRO" <<<"$staged"` revertido ao pipeline numa cópia mutada, o P3 falha (2026-10-25).
+
 ## [0.7.0] — 2026-10-24 — guarda da main do repositório de coordenação e saúde do quadro
 
 ### Added

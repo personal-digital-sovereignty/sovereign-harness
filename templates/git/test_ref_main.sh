@@ -216,6 +216,20 @@ prepara "volta à main" -- git checkout -q main
 antes=$(main_sha)
 tenta 1 "Gate skills reprovou a árvore nova" "P2 update-ref de 6000 arquivos com skill quebrada é recusado (sem falsa negativa)" -- git update-ref refs/heads/main claude/merge-grande "$antes"
 
+# --- P3: o padrão perigoso não voltou aos hooks -------------------------------
+# Mutação M6 (2026-10-25): reverter um `grep -q ... <<<"$var"` para
+# `printf ... | grep -q` reintroduz a falsa negativa de SIGPIPE — e a corrida
+# não é determinística (medido: 0–52/300; o fixture não paga provas de corrida,
+# e no arranjo grande do P2 o gate de skills por `printf | grep -q` já deixa a
+# skill quebrada entrar). A prova da forma é determinística: nenhum
+# `printf ... | grep -q` pode existir em pre-commit nem na guarda.
+if grep -nE 'printf .* \| grep -q' "$HOOKS/pre-commit" "$HOOKS/reference-transaction" | grep -vE ':[0-9]+:\s*#' >/dev/null 2>&1; then
+    nok "P3 o padrão 'printf ... | grep -q' voltou aos hooks (em linha de código):"
+    grep -nE 'printf .* \| grep -q' "$HOOKS/pre-commit" "$HOOKS/reference-transaction" | grep -vE ':[0-9]+:\s*#' | sed 's/^/      /'
+else
+    ok "P3 nenhum 'printf ... | grep -q' nos hooks (here-string ou case)"
+fi
+
 echo
 [ "$falhas" -eq 0 ] && { echo "test_ref_main: tudo verde"; exit 0; }
 echo "test_ref_main: $falhas falha(s)"; exit 1

@@ -62,7 +62,10 @@ printf '%s\n' "$staged" | sed 's/^/    · /'
 # NOTA (2026-10-23): nada de `produtor | grep -q` neste arquivo. Com pipefail, o
 # grep -q sai no primeiro acerto, o produtor morre de SIGPIPE e o pipeline conta
 # como FALHA. Medido: `env | grep -q` errou 152/300; `printf grande | grep -q`,
-# 200/200. A exceção HARNESS_SKIP=docrefs era ignorada ao acaso. Use here-string
+# 200/200. A exceção HARNESS_SKIP=docrefs era ignorada ao acaso. Ressalva
+# (2026-10-25): as taxas são de corrida, não constantes — o mesmo pipeline
+# revalidado deu 0–52/300 e 0–1/30; o mecanismo reproduz, o número não. Use
+# here-string
 # (`grep -q ... <<<"$var"`) ou `case` sobre a variável.
 # Os scripts auxiliares são resolvidos pelo diretório do próprio hook: com
 # core.hooksPath absoluto, o CWD de um worktree antigo pode não ter `.githooks/`.
