@@ -59,8 +59,8 @@ git status --porcelain -- <seus arquivos limpos>     # vazio
 git diff main NEW -- <arquivo sujo> > p.patch
 git apply --check p.patch                            # o seu trecho entra por cima do alheio
 
-# 3. Tudo num comando só, ENCADEADO com && — no shell de ferramenta do agente
-#    o `set -e` pode não abortar (medido: `set -e; false; echo x` imprime x)
+# 3. Tudo num comando só, ENCADEADO com && — nunca conte com `set -e` para
+#    proteger este passo (o porquê está no parágrafo abaixo do bloco)
 git update-ref refs/heads/main NEW OLD &&   # CAS: recusa se a main andou
 git checkout NEW -- <seus arquivos limpos> &&
 git reset -q -- <arquivo sujo> &&           # index ← nova main
@@ -70,6 +70,8 @@ git apply p.patch                           # working copy = nova main + ediçã
 git diff --cached --quiet                 # nada staged no checkout dela
 git diff --stat <arquivo sujo>            # igual ao de antes: só a edição alheia
 ```
+
+**Por que `&&` e não `set -e`**: o `set -e` **não é contrato entre harnesses**. Ele é uma opção do shell, e o shell a ignora por especificação quando o comando roda dentro de `if`, de `&&`/`||`, de `while`/`until` ou de substituição de comando — exatamente as formas como um harness pode embrulhar o que você digitou. O resultado medido foi oposto nos dois lados: no Claude Code (2026-10-23) `set -e; false; echo x` **imprimiu `x`**; no OpenCode (2026-10-25) o mesmo comando **abortou com rc=1**, inline, via `bash -c`, num arquivo `.sh` e sob o `rtk`. Mesmo shell, contextos diferentes — porque quem decide é o contexto de execução, não a sua linha. O `&&` vale nos dois: o encadeamento é do próprio comando, não do shell que o hospeda. Não registre "o `set -e` não funciona aqui" como lição: a lição é que ele não é uma garantia portável.
 
 **O passo 3 precisa ser completo**: o `update-ref` move a `main`, mas não toca no index nem nos arquivos. Sem `checkout`/`reset`/`apply`, o index fica com as versões **velhas** dos seus arquivos, e o próximo `git commit -a` da outra sessão **reverte o seu trabalho** sem conflito e sem aviso.
 
