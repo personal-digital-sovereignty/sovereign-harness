@@ -271,6 +271,14 @@ case "${1:-}" in
         if [ -z "${QUADRO_SEM_SAUDE:-}" ]; then
             echo >&2
             saude >&2
+            # Registro de worktrees (docs/Worktrees.md), se o projeto o tem: quem lê o
+            # quadro vê também o que está finalizado e esperando limpeza. Silencioso onde
+            # o registro não existe — o helper é do projeto, o kit só oferece o gancho.
+            if [ -x "$META_REPO/.agents/worktrees.sh" ] \
+               && git -C "$META_REPO" cat-file -e main:docs/Worktrees.md 2>/dev/null; then
+                echo >&2
+                WORKTREES_META_REPO="$META_REPO" "$META_REPO/.agents/worktrees.sh" saude >&2 || true
+            fi
         fi
         ;;
     saude)   saude "${2:-}"; exit $? ;;

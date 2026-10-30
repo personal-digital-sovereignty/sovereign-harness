@@ -179,5 +179,20 @@ saida=$("$HELPER" saude 2>&1)
 grep -q -- "agents_work.md" <<<"$saida" && nok "S6e: acusou o próprio quadro" || ok "S6e: o próprio quadro sujo não é acusado"
 git checkout -q -- .agents/agents_work.md docs/ADR-999.md && rm -f docs/solta.md
 
+# S7: gancho do registro de worktrees no `ler`. Sem o helper e sem docs/Worktrees.md na main, silêncio.
+# Com os dois, a saúde dele aparece em stderr (e só lá: o stdout do `ler` é o quadro, intacto).
+saida=$(QUADRO_DIAS_PARADA=99999 "$HELPER" ler 2>&1 >/dev/null)
+grep -q "STUB-WORKTREES" <<<"$saida" && nok "S7: gancho rodou sem o helper do projeto" || ok "S7: sem helper e sem registro, o ler não menciona worktrees"
+git checkout -q main 2>/dev/null; mkdir -p docs
+printf '# Registro\n' > docs/Worktrees.md; git add docs/Worktrees.md && git commit -qm "registro de worktrees" 2>/dev/null
+printf '#!/usr/bin/env bash\necho "STUB-WORKTREES saude: $1 meta=$WORKTREES_META_REPO"\n' > .agents/worktrees.sh; chmod +x .agents/worktrees.sh
+saida=$("$HELPER" ler 2>&1 >/dev/null)
+grep -q "STUB-WORKTREES saude: saude meta=$QUADRO_META_REPO" <<<"$saida" && ok "S7: com helper e registro na main, o ler mostra a saúde dos worktrees (em stderr)" || nok "S7: gancho não apareceu: $saida"
+saida=$("$HELPER" ler 2>/dev/null)
+grep -q "STUB-WORKTREES" <<<"$saida" && nok "S7: a saúde dos worktrees vazou para o stdout do ler" || ok "S7: o stdout do ler segue sendo só o quadro"
+saida=$(QUADRO_SEM_SAUDE=1 "$HELPER" ler 2>&1 >/dev/null)
+grep -q "STUB-WORKTREES" <<<"$saida" && nok "S7: QUADRO_SEM_SAUDE=1 não desligou o gancho" || ok "S7: QUADRO_SEM_SAUDE=1 desliga também o gancho"
+rm -f .agents/worktrees.sh
+
 echo
 if [ "$falhas" -eq 0 ]; then echo "TUDO OK"; else echo "$falhas falha(s)"; exit 1; fi
