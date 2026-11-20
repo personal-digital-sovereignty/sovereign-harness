@@ -109,6 +109,39 @@ class MultiStack(unittest.TestCase):
         self.assertNotIn("clippy", r.stdout)
         self.assertNotIn("npm", r.stdout)
 
+    def test_lint_le_a_edicao_do_manifesto(self):
+        """Crate em edition 2024, com import no estilo 2024: o gate tem de aprovar.
+
+        Prova negativa (2026-11-20, projeto de origem): com `--edition 2021`
+        fixo neste gate, ESTE arquivo reprovava — e o `cargo fmt` do projeto,
+        que lê a edição real, o aprovava. Os dois gates do mesmo projeto
+        discordavam sobre a ordem dos itens de import.
+        """
+        (self.repo / "Cargo.toml").write_text(
+            '[package]\nname = "mini"\nversion = "0.1.0"\nedition = "2024"\n')
+        src = self.repo / "src"
+        src.mkdir(exist_ok=True)
+        # `use crate::dominio::{ALFA, Beta}` separa as duas edições: o estilo
+        # 2024 ordena por ASCII (ALFA antes de Beta) e o 2021 põe tipo antes
+        # de constante (Beta antes de ALFA).
+        (src / "lib.rs").write_text(
+            "pub mod dominio {\n"
+            "    pub const ALFA: i32 = 1;\n"
+            "    pub struct Beta {\n"
+            "        pub valor: i32,\n"
+            "    }\n"
+            "}\n"
+            "\n"
+            "use crate::dominio::{ALFA, Beta};\n"
+            "\n"
+            "pub fn f() -> i32 {\n"
+            "    ALFA + Beta { valor: 1 }.valor\n"
+            "}\n")
+        new = self.commit("edition 2024")
+        r = self.prepush(new)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("✅ lint", r.stdout)
+
     def test_lint_python_sujo_reprova(self):
         # Prova negativa: o gate morde de verdade (ruff real).
         (self.repo / "pyproject.toml").write_text('[project]\nname = "mini"\n')

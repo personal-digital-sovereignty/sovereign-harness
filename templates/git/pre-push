@@ -355,7 +355,13 @@ if [ -f "Cargo.toml" ]; then
     # reprovava com `left behind trailing whitespace` vindo de outros dez
     # arquivos antigos, e antes disso com centenas de diffs do `api.rs`.
     # A `--edition` precisa ser explícita porque o `rustfmt` cru assume 2015 e
-    # erra o parse de código 2021.
+    # erra o parse de código 2021 — mas ela vem do MANIFESTO, nunca de um
+    # literal (2026-11-20). O hook fixava `--edition 2021` e o projeto de
+    # origem passou a edition 2024: o estilo 2024 ordena itens de import de
+    # outro jeito, então este gate passou a reprovar arquivo que o OUTRO gate
+    # do mesmo projeto (`cargo fmt --all -- --check`, que lê a edição real)
+    # aprovava. Medido no mesmo arquivo e no mesmo `rustfmt`: `--edition 2024`
+    # limpo, `--edition 2021` com diff. Ler o manifesto elimina a classe.
     gate_lint() {
         precisa_de rustfmt "rustup component add rustfmt" || return 127
         local rs=()
@@ -374,7 +380,14 @@ if [ -f "Cargo.toml" ]; then
         # É a mesma classe do incidente do `cargo fmt` já registrado neste arquivo,
         # por mecanismo diferente: lá a ferramenta ignorava a lista e enumerava os
         # targets; aqui ela aceita a lista e expande a partir dela.
-        rustfmt --edition 2021 --check --config skip_children=true "${rs[@]}"
+        #
+        # Limite conhecido: um membro do workspace que declare edição própria
+        # seria verificado com a do workspace. Nenhum projeto do kit o faz hoje;
+        # quando fizer, a leitura precisa ser por arquivo.
+        local edition
+        edition=$(sed -n 's/^[[:space:]]*edition[[:space:]]*=[[:space:]]*"\([0-9][0-9]*\)".*/\1/p' Cargo.toml 2>/dev/null | head -1)
+        [ -n "$edition" ] || edition=2021
+        rustfmt --edition "$edition" --check --config skip_children=true "${rs[@]}"
     }
     run_gate lint gate_lint
 fi
