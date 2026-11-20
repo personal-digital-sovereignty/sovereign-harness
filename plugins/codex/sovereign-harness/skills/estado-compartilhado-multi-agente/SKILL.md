@@ -1,6 +1,6 @@
 ---
 name: estado-compartilhado-multi-agente
-description: Como não estragar o ambiente de outras sessões que trabalham na MESMA árvore — worktree derivado de main local desatualizado, arquivo inteiro sobrescrito por versão antiga, rm que atravessa symlink, npm install que materializa node_modules compartilhado, e o HEAD que outra sessão move debaixo de você. Carregar antes de criar git worktree, antes de qualquer rm/mv fora do seu diretório, antes de npm install/update, antes de publicar na main com o checkout principal sujo de outra sessão (§7), e antes de interpretar um erro de build que "apareceu do nada".
+description: Como não estragar o ambiente de outras sessões que trabalham na MESMA árvore — worktree derivado de main local desatualizado, arquivo inteiro sobrescrito por versão antiga, rm que atravessa symlink, npm install que materializa node_modules compartilhado, branch de escopo que vira segundo trunk (§1c), e o HEAD que outra sessão move debaixo de você. Carregar antes de criar git worktree, antes de qualquer rm/mv fora do seu diretório, antes de npm install/update, antes de publicar na main com o checkout principal sujo de outra sessão (§7), antes de interpretar um erro de build que "apareceu do nada", e antes de escolher qual checkout ler quando duas árvores se dizem "o trabalho de X".
 ---
 
 # Estado compartilhado — o que quebra quando vários agentes usam a mesma árvore
@@ -24,6 +24,26 @@ Correção importante, medida: a branch atrasada NÃO reverte o que `main` ganho
 ## 1b. O caso que realmente apaga trabalho: arquivo inteiro sobrescrito com versão antiga
 
 Uma branch EM DIA com `main` cujo commit sobrescreve um arquivo inteiro com uma versão velha (um `cp` malfeito) carrega a remoção explícita no diff; o merge a aplica sem conflito. Não há gate possível — é indistinguível de remoção deliberada. Defesa: olhar o `git diff` depois de qualquer `cp`/`mv`/geração por script.
+
+## 1c. Branch de escopo vira segundo trunk
+
+Branch cujo nome descreve **escopo** (`feature/resto-do-projeto`, `feature/R1-restante`) em vez de uma unidade de trabalho entregável sobrevive à entrega que a criou e vira um segundo trunk: acumula assuntos, envelhece e continua se apresentando como "o checkout daquele trabalho" para toda sessão que a lê.
+
+Caso medido (projeto de origem, 2026-11-20): a branch `feature/R1-restante` era **ancestral** da `main` — 0 commits exclusivos, 3 commits atrás — e o worktree apontava para ela enquanto o checkout principal estava na `main`. Duas árvores se apresentavam como "o trabalho da R1"; a sessão leu `git status` repetidamente no checkout errado e relatou estado que não correspondia ao repositório (branch atrás, módulo "faltando").
+
+O custo não é hipotético: é o preço de não saber qual checkout é o trabalho.
+
+**Regra:** um nome de branch = uma unidade de trabalho entregável. Escopo pertence ao roadmap, não ao ref. Ao entregar, a branch é apagada no mesmo passo: `git branch -d` (recusa se não estiver integrada) e `git branch -D` só depois de provar que não há conteúdo exclusivo.
+
+**Antes de ler estado, distinga trabalho de sombra:**
+
+```bash
+git rev-list --count <branch>..main   # >0 = a branch está atrás: sombra
+git diff --name-status <branch> main  # vazio = nenhum arquivo exclusivo
+git branch -vv                        # quem está em cada worktree
+```
+
+O `saude` do `quadro.sh` lista branches com conteúdo fora da `main` e as já publicadas que só faltam apagar; onde o projeto tem `worktrees.sh` + `docs/Worktrees.md`, o `ler` mostra também o registro de worktrees. Rode-o ao ler o quadro, em vez de confiar no `git status` do checkout em que você caiu.
 
 ## 2. `rm` atravessa symlink e apaga o alvo
 
@@ -84,6 +104,7 @@ git diff --stat <arquivo sujo>            # igual ao de antes: só a edição al
 | Vou... | Confira com |
 |---|---|
 | criar worktree | `git fetch origin` e derivar de `origin/main` |
+| saber qual checkout é o trabalho | `git rev-list --count <branch>..main` (0 = sombra) e `git branch -vv` |
 | apagar/mover arquivo | `readlink -f` no caminho |
 | instalar dependência | `ls -la node_modules \| head -1` |
 | commitar | `git branch --show-current` e `git diff --cached --stat` |

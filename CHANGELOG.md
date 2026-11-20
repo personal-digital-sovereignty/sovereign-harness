@@ -5,6 +5,9 @@
 ### Added
 - `quadro.sh ler`: gancho do registro de worktrees. Se o projeto tem `.agents/worktrees.sh` executável **e** `docs/Worktrees.md` na `main`, o `ler` mostra também (em stderr, depois da saúde do quadro) o `worktrees.sh saude` — o que está `finalizado` esperando limpeza, o que não tem registro, o que está parado. Silencioso onde o registro não existe: o kit oferece o gancho, o helper é do projeto. `QUADRO_SEM_SAUDE=1` desliga os dois. Origem: no projeto de origem, a limpeza de 2026-10-30 achou 23 worktrees e 26 branches `codex/*` integrados havia dias, sem registro de dono; a obrigação de limpar só funciona se quem lê o quadro vê o pendente. Teste: `test_quadro.sh` S7 (sem helper = silêncio; com helper e registro = saúde em stderr, stdout do `ler` intacto, `QUADRO_SEM_SAUDE=1` desliga), provado no negativo com o gancho neutralizado.
 
+### Changed
+- Skill `estado-compartilhado-multi-agente` §1c: **branch de escopo vira segundo trunk**. Caso medido no projeto de origem (2026-11-20): `feature/R1-restante` era ancestral da `main` — 0 commits exclusivos, 3 commits atrás — e o worktree apontava para ela enquanto o checkout principal estava na `main`. Duas árvores se apresentavam como "o trabalho da R1"; a sessão leu `git status` repetidamente no checkout errado e relatou estado que não correspondia ao repositório. A regra que sai daí: nome de branch = unidade de trabalho entregável, e a branch é apagada no mesmo passo da entrega. A seção traz os três comandos que distinguem trabalho de sombra antes de ler estado e aponta o `saude` do `quadro.sh` (e o registro de worktrees, onde existe) como o lugar de conferir. O `description` da skill ganhou o gatilho "antes de escolher qual checkout ler quando duas árvores se dizem 'o trabalho de X'".
+
 ## [0.7.1] — 2026-10-25 — lição corrigida do `set -e` e o padrão perigoso provado
 
 ### Changed
