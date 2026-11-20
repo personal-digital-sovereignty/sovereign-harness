@@ -1,6 +1,9 @@
 # Changelog — Sovereign Harness
 
-## [Não lançado]
+## [0.7.2] — 2026-11-20 — gate de lint lê a edição do manifesto
+
+### Fixed
+- `templates/git/pre-push`, gate `lint`: formatava com `rustfmt --edition 2021` **fixo**. O projeto de origem passou a edition 2024 e o outro gate do mesmo projeto (`cargo fmt --all -- --check`, que lê a edição real) passou a discordar — arquivo conforme era reprovado no push, por ordenação de itens de import. A edição agora vem do `Cargo.toml`. Medição que fecha o diagnóstico: mesmo arquivo e mesmo `rustfmt`, `--edition 2024` limpo e `--edition 2021` com diff. Prova: `test_prepush_multistack.py::test_lint_le_a_edicao_do_manifesto` — crate em edition 2024 com import no estilo 2024 passa com o gate corrigido e reprovava com o literal. Limite registrado no hook: membro do workspace que declare edição própria seria verificado com a do workspace (nenhum projeto do kit o faz hoje).
 
 ### Added
 - `quadro.sh ler`: gancho do registro de worktrees. Se o projeto tem `.agents/worktrees.sh` executável **e** `docs/Worktrees.md` na `main`, o `ler` mostra também (em stderr, depois da saúde do quadro) o `worktrees.sh saude` — o que está `finalizado` esperando limpeza, o que não tem registro, o que está parado. Silencioso onde o registro não existe: o kit oferece o gancho, o helper é do projeto. `QUADRO_SEM_SAUDE=1` desliga os dois. Origem: no projeto de origem, a limpeza de 2026-10-30 achou 23 worktrees e 26 branches `codex/*` integrados havia dias, sem registro de dono; a obrigação de limpar só funciona se quem lê o quadro vê o pendente. Teste: `test_quadro.sh` S7 (sem helper = silêncio; com helper e registro = saúde em stderr, stdout do `ler` intacto, `QUADRO_SEM_SAUDE=1` desliga), provado no negativo com o gancho neutralizado.
