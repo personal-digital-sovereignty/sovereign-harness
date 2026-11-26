@@ -1,5 +1,13 @@
 # Changelog — Sovereign Harness
 
+## [Não lançado]
+
+### Fixed
+- `templates/git/reference-transaction`, guarda da `main`: a guarda lia o **valor** da transação como **ação**, e o `git pack-refs` emite, na mesma execução, `0000…0 → sha` (recriação: tirou do loose, escreveu no packed) e depois **`sha → 0000…0`** para cada ref — a segunda linha é a assinatura exata de uma **deleção**. Resultado: alarme `❌ MAIN NÃO ATUALIZADA — Esta operação APAGARIA a branch main` **sem nada ser apagado**, junto de `error: task 'pack-refs' failed`, depois de commit, merge ou push, porque a manutenção automática do git roda `pack-refs` sozinha. Reproduzido em 2026-11-26 capturando **61 transações** do hook (o sintoma apareceu cinco vezes e não reproduzia sob demanda); não há discriminador no ambiente — `GIT_REFLOG_ACTION` veio **vazio nas 61**. Conserto: marca da transação de recriação, consumida pela "deleção" seguinte **apenas** com o **mesmo sha** da `main` e dentro de **5 s** (recriação e "deleção" são do mesmo comando, em milissegundos). Prova: `test_ref_main.sh` **A11** — a recriação passa, o par do re-pack passa, `pack-refs` ponta a ponta não falha, a `main` continua de pé, **e a deleção real (A8) continua barrada**, mais marca gasta e marca velha reprovando. Sem a recíproca, o conserto seria uma porta aberta.
+
+### Added
+- Skill `guarda-de-transacao-de-ref`: o **valor da transação não é a ação**. A regra geral (a guarda infere ação por valor e outro comando produz o mesmo valor para outra ação), por que sintoma intermitente se instrumenta em vez de se explicar, por que se procura o **discriminador** antes de afrouxar a regra, a prova que impede a porta aberta, a prova com `stdin` forjado — e o custo de instrumentar por `core.hooksPath`, que **desliga todos os outros hooks** (na origem, um commit de sonda caiu **na `main`** porque o gate que barra commit direto nela tinha sido substituído pelo instrumento: o instrumento mudou o que estava sendo medido).
+
 ## [0.7.2] — 2026-11-20 — gate de lint lê a edição do manifesto
 
 ### Fixed
