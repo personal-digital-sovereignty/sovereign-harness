@@ -167,6 +167,40 @@ tenta 0 "guarda da main pulada (HARNESS_SKIP)" "A9 HARNESS_SKIP=main-ref deixa r
 [ "$(main_sha)" != "$antes" ] || nok "A9 a main não recuou com a exceção"
 HARNESS_SKIP=main-ref git reset -q --hard "$antes"
 
+# --- A11: o `git pack-refs` NÃO é deleção (falso positivo, origem 2026-11-26) ---
+# O que o `pack-refs` emite, na MESMA execução: `0000 -> sha` (recriação) e
+# depois `sha -> 0000` para cada ref — e a segunda é a assinatura exata de uma
+# deleção. A guarda bloqueava a segunda, e a manutenção automática do git (que
+# roda `pack-refs` sozinha depois de commit/merge/push) falhava com
+# "error: task 'pack-refs' failed". Os dois lados ficam aqui: o par do re-pack
+# passa, e a deleção real (A8, acima) continua barrada — sem essa recíproca, o
+# conserto seria uma porta aberta.
+MARCA_REPACK="${TMPDIR:-/tmp}/sovereign-main-repack-$(id -u).stamp"
+rm -f "$MARCA_REPACK"
+sha=$(main_sha)
+if printf '0000000000000000000000000000000000000000 %s refs/heads/main\n' "$sha" \
+    | .githooks/reference-transaction prepared >/dev/null 2>&1; then
+    ok "A11a a recriação do pack-refs passa"
+else
+    nok "A11a a recriação do pack-refs foi recusada"
+fi
+if printf '%s 0000000000000000000000000000000000000000 refs/heads/main\n' "$sha" \
+    | .githooks/reference-transaction prepared >/dev/null 2>&1; then
+    ok "A11 o par do pack-refs NÃO é lido como deleção"
+else
+    nok "A11 falso positivo do pack-refs voltou"
+fi
+if [ -z "$(git -C "$R" rev-parse -q --verify main 2>/dev/null)" ]; then
+    nok "A11 a main sumiu"
+else
+    ok "A11b a main continua de pé"
+fi
+prepara "branch solta para o pack-refs ter trabalho" -- git branch solta-para-pack
+out=$(git pack-refs --all 2>&1); rc=$?
+if [ "$rc" -eq 0 ] && [ -z "$out" ]; then ok "A11c pack-refs ponta a ponta não falha"; else nok "A11c pack-refs falhou (rc=$rc): $out"; fi
+prepara "apagar a branch solta" -- git branch -D solta-para-pack
+rm -f "$MARCA_REPACK"
+
 git checkout -q claude/trabalho
 b=$(git rev-parse HEAD)
 tenta 0 "" "A10 refs que não são a main não são afetadas (reset numa branch)" -- git reset -q --hard HEAD~1

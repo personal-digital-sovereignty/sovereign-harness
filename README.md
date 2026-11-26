@@ -23,7 +23,7 @@ uma stack, SO ou integração de agente não exercitados.
 | Peça | Onde | Para quê |
 |---|---|---|
 | Guard do agente | `core/harness_guard.py` | bloqueia antes de executar 17 classes de ação perigosa (git add amplo, `--no-verify`, hooks desligados, stash compartilhado, `rm` através de symlink, commit em branch protegida, merge sem gate, `.env` no stdout, descarte de trabalho…). Escape nominal por regra. Só stdlib, Python ≥ 3.11 |
-| Skills de método (15) | `skills/` | método, validação, segurança, governança documental, classificação e encerramento rastreável |
+| Skills de método (16) | `skills/` | método, validação, segurança, governança documental, classificação e encerramento rastreável |
 | Comandos (6) | `commands/` | `quadro`, `validar`, `fechamento`, `adr`, `gap`, `doc` |
 | Claude Code | `.claude-plugin/marketplace.json`, `plugins/claude-code/` | plugin `sovereign-harness-guard` (hooks + comandos); `sovereign-harness-metodo` (skills) é opcional — as skills chegam pelo symlink `.claude/skills` |
 | Codex | `.agents/plugins/marketplace.json`, `plugins/codex/` | plugin de skills; guard via `.codex/hooks.json` do projeto |

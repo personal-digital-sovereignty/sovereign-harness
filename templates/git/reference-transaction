@@ -33,10 +33,34 @@ set -uo pipefail
 
 [ "${1:-}" = "prepared" ] || exit 0
 
-novo=""
-while read -r _velho n ref; do
-    [ "$ref" = "refs/heads/main" ] && novo="$n"
+ZERO='0000000000000000000000000000000000000000'
+# Marca da transacao de RECRIACAO da main. O `git pack-refs` emite, na MESMA
+# execucao, primeiro `<ZERO> <sha> refs/heads/main` (recriacao: tirou do loose,
+# escreveu no packed) e depois `<sha> <ZERO> refs/heads/main` — e a segunda linha
+# e a assinatura exata de uma DELECAO. O hook bloqueava, e a manutencao
+# automatica do git (que roda `pack-refs` sozinha depois de commit/merge/push)
+# falhava com "error: task 'pack-refs' failed". Reproduzido em 2026-11-26
+# capturando 61 transacoes do hook: o par recriacao+"delecao" vem do MESMO
+# comando, em milissegundos, e nao ha discriminador no ambiente
+# (`GIT_REFLOG_ACTION` veio vazio nas 61). A marca separa os dois sem afrouxar a
+# regra: so vale com o MESMO sha da main e dentro de uma janela curta.
+MARCA="${TMPDIR:-/tmp}/sovereign-main-repack-$(id -u).stamp"
+JANELA_MARCA_S=5
+
+novo=""; recriou=""
+while read -r velho n ref; do
+    [ "$ref" = "refs/heads/main" ] || continue
+    if [ "$velho" = "$ZERO" ] && [ "$n" != "$ZERO" ]; then
+        recriou="$n"
+        continue
+    fi
+    novo="$n"
 done
+# Grava a marca ANTES da saida antecipada: na transacao de recriacao o `novo` e
+# vazio, e a marca e o que a "delecao" seguinte vai consultar.
+if [ -n "$recriou" ]; then
+    printf '%s %s\n' "$(date +%s)" "$recriou" > "$MARCA" 2>/dev/null || true
+fi
 [ -n "$novo" ] || exit 0
 
 case ",${HARNESS_SKIP:-}," in
@@ -71,7 +95,22 @@ bloqueia() {
 
 case "$novo" in
     *[!0]*) ;;
-    *) bloqueia "Esta operação APAGARIA a branch \`main\`." ;;
+    *)
+        # `new` zerado: e o re-pack do MESMO comando? Marca fresca e o MESMO sha
+        # da main => e o `pack-refs`; marca gasta, velha ou de outro sha =>
+        # delecao de verdade, e bloqueia.
+        if [ -f "$MARCA" ]; then
+            lido=$(cat "$MARCA" 2>/dev/null || true)
+            marca_quando=${lido%% *}
+            marca_sha=${lido#* }
+            if [ -n "$marca_quando" ] && [ "$(( $(date +%s) - marca_quando ))" -le "$JANELA_MARCA_S" ] \
+               && [ -n "$marca_sha" ] && [ "$marca_sha" = "$(git rev-parse -q --verify refs/heads/main 2>/dev/null || true)" ]; then
+                rm -f "$MARCA" 2>/dev/null || true
+                exit 0
+            fi
+        fi
+        bloqueia "Esta operação APAGARIA a branch \`main\`."
+        ;;
 esac
 
 mudou=""
